@@ -5,11 +5,13 @@ Unified Python SDK for cloud object/blob storage. Python port of [files-sdk.dev]
 One API, swap the adapter to change backend. v0 ships R2, S3, and Local adapters; 15 cloud providers scaffolded for contributors.
 
 ```bash
-pip install files-sdk
-pip install files-sdk-local        # zero deps, ideal for dev/test
-pip install files-sdk-s3           # Amazon S3 (sync + async)
-pip install files-sdk-r2           # Cloudflare R2 (sync + async)
+uv add files-sdk
+uv add files-sdk-local             # zero deps, ideal for dev/test
+uv add files-sdk-s3                # Amazon S3 (sync + async)
+uv add files-sdk-r2                # Cloudflare R2 (sync + async)
 ```
+
+`pip install ...` works too if you're not on uv yet. Get uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 
 ## Quickstart — no credentials (Local)
 

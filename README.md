@@ -14,7 +14,8 @@ cloud object/blob storage providers.
 ## Quickstart (no cloud needed)
 
 ```bash
-pip install files-sdk files-sdk-local
+uv init my-app && cd my-app
+uv add files-sdk files-sdk-local
 ```
 
 ```python
@@ -29,7 +30,7 @@ print(files.download("hello.txt").text())
 ## Quickstart (S3)
 
 ```bash
-pip install files-sdk files-sdk-s3
+uv add files-sdk files-sdk-s3
 ```
 
 ```python
@@ -40,6 +41,25 @@ files = Files(adapter=S3Adapter(bucket="my-bucket"))
 files.upload("hello.txt", b"hi")
 print(files.download("hello.txt").text())
 ```
+
+## One-shot script (no project setup)
+
+Embed dependencies inline with [PEP 723](https://peps.python.org/pep-0723/):
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["files-sdk", "files-sdk-local"]
+# ///
+from files_sdk import Files
+from files_sdk_local import LocalAdapter
+
+files = Files(adapter=LocalAdapter(root="/tmp/my-store"))
+files.upload("hello.txt", b"hi")
+```
+
+Don't have `uv`? Install it: `curl -LsSf https://astral.sh/uv/install.sh | sh` ([docs](https://docs.astral.sh/uv/)). `pip install files-sdk files-sdk-local` works too.
 
 ## Development
 
