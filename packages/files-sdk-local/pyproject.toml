@@ -5,6 +5,7 @@ description = "Local filesystem adapter for files-sdk — zero deps, ideal for d
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
