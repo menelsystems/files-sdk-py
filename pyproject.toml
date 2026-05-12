@@ -16,6 +16,9 @@ files-sdk-r2 = { workspace = true }
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 asyncio_mode = "auto"
+markers = [
+    "integration: end-to-end tests requiring a live S3-compatible server (FILES_SDK_INTEGRATION_ENDPOINT)",
+]
 
 [dependency-groups]
 dev = [
