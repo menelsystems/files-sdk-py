@@ -1,0 +1,9 @@
+{
+  "include": ["packages/*/src", "packages/*/tests"],
+  "exclude": ["**/__pycache__", "packages/_template"],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": false,
+  "venvPath": ".",
+  "venv": ".venv"
+}
