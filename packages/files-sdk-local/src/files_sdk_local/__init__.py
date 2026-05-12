@@ -1,11 +1,17 @@
 """files-sdk-local — local filesystem adapter."""
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import TYPE_CHECKING
 
 from .adapter import LocalAdapter
 from .async_adapter import AsyncLocalAdapter
 
-__version__ = "0.1.0"
+try:
+    __version__ = _pkg_version("files-sdk-local")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0+unknown"
+
 __all__ = ["AsyncLocalAdapter", "LocalAdapter"]
 
 if TYPE_CHECKING:

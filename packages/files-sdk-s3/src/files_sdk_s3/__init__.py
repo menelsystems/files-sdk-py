@@ -1,11 +1,17 @@
 """files-sdk-s3 — Amazon S3 adapter."""
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import TYPE_CHECKING
 
 from .adapter import S3Adapter
 from .async_adapter import AsyncS3Adapter
 
-__version__ = "0.1.0"
+try:
+    __version__ = _pkg_version("files-sdk-s3")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0+unknown"
+
 __all__ = ["AsyncS3Adapter", "S3Adapter"]
 
 if TYPE_CHECKING:

@@ -1,0 +1,166 @@
+name: Release
+
+# Lockstep monorepo release. A single tag `v<version>` publishes ALL first-party
+# packages at the same version. Per-package skew is structurally impossible:
+# every pyproject reads `version` from the shared VERSION file via
+# hatchling's dynamic-version source.
+#
+# Examples of valid tags:
+#   v0.1.0a1
+#   v0.1.0
+#   v1.2.3
+#
+# Authentication: PyPI Trusted Publishing (OIDC) — no API tokens. Each package
+# needs a one-time pending publisher entry on PyPI; see RELEASING.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'PEP 440 version to dry-run (must match VERSION file)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Build + validate but skip publish'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # All publishing flows through a dedicated `pypi` environment so future
+    # maintainers can have repo commit access without inheriting publish
+    # rights. Configure in repo settings → Environments → "pypi" with optional
+    # required reviewers and deployment-branch protections (recommended: only
+    # `v*` tags can deploy). PyPI's pending-publisher entries MUST list
+    # "Environment: pypi" too — trust narrows to deployments through this env.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/files-sdk/
+    permissions:
+      id-token: write        # OIDC for PyPI Trusted Publishing + GitHub attestations
+      contents: write        # gh release create
+      attestations: write    # actions/attest-build-provenance
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Set Python 3.13
+        run: uv python install 3.13
+
+      - name: Resolve version
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="v${{ inputs.version }}"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          version="${tag#v}"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Resolved: tag=$tag version=$version"
+
+      - name: Validate tag matches workspace VERSION
+        run: uv run --no-project --with packaging python tools/check_release_tag.py "${{ steps.meta.outputs.tag }}"
+
+      - name: Sync workspace
+        run: uv sync --all-packages
+
+      # Build every first-party package. Order doesn't matter for the build
+      # itself — only for the publish step, where downstream packages need their
+      # upstreams on PyPI for any subsequent installs to resolve. `--out-dir`
+      # forces per-package dist/ so each package's artifacts stay siloed (uv
+      # would otherwise put all four into the workspace-level dist/).
+      - name: Build all packages
+        run: |
+          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2; do
+            echo "::group::build $pkg"
+            (cd packages/$pkg && uv build --out-dir dist)
+            echo "::endgroup::"
+          done
+
+      - name: Verify artifacts contain LICENSE
+        run: |
+          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2; do
+            for f in packages/$pkg/dist/*.whl packages/$pkg/dist/*.tar.gz; do
+              python -c "
+          import sys, tarfile, zipfile
+          path = sys.argv[1]
+          if path.endswith('.whl'):
+              names = zipfile.ZipFile(path).namelist()
+          else:
+              with tarfile.open(path) as t:
+                  names = t.getnames()
+          assert any('LICENSE' in n for n in names), f'no LICENSE in {path}'
+          print(f'  ok: {path}')
+          " "$f"
+            done
+          done
+
+      # GitHub artifact attestation (SLSA Build L3) — separate provenance trail
+      # from PyPI's PEP 740 attestation. Both end up in Sigstore's transparency
+      # log but rooted in different identities.
+      - name: Attest build provenance (GitHub)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'packages/*/dist/*'
+
+      # Publish in dependency order: core first, then independent adapters in
+      # parallel-ish (sequential here, fast either way), then R2 last because
+      # it depends on files-sdk-s3 via PyPI metadata.
+      - name: Publish files-sdk (core)
+        if: github.event_name == 'push' || inputs.dry_run == false
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/files-sdk/dist
+          attestations: true
+
+      - name: Publish files-sdk-s3
+        if: github.event_name == 'push' || inputs.dry_run == false
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/files-sdk-s3/dist
+          attestations: true
+
+      - name: Publish files-sdk-local
+        if: github.event_name == 'push' || inputs.dry_run == false
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/files-sdk-local/dist
+          attestations: true
+
+      - name: Publish files-sdk-r2
+        if: github.event_name == 'push' || inputs.dry_run == false
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/files-sdk-r2/dist
+          attestations: true
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            packages/files-sdk/dist/* \
+            packages/files-sdk-s3/dist/* \
+            packages/files-sdk-local/dist/* \
+            packages/files-sdk-r2/dist/* \
+            --title "files-sdk-py ${{ steps.meta.outputs.version }}" \
+            --notes "Lockstep release of all first-party packages at ${{ steps.meta.outputs.version }}. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md). Install: \`uv add files-sdk-s3==${{ steps.meta.outputs.version }}\` (or any other adapter package)." \
+            --verify-tag
