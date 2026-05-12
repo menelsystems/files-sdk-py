@@ -87,8 +87,8 @@ class AsyncFiles:
     async def download(self, key: str) -> StoredFile:
         return await self._adapter.download(key)
 
-    async def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
-        return await self._adapter.stream(key, chunk_size=chunk_size)  # type: ignore[no-any-return]
+    def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+        return self._adapter.stream(key, chunk_size=chunk_size)
 
     async def head(self, key: str) -> FileMetadata:
         return await self._adapter.head(key)

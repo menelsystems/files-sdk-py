@@ -31,7 +31,7 @@ class AsyncLocalAdapter:
     async def download(self, key: str) -> StoredFile:
         return await asyncio.to_thread(self._storage.download, key)
 
-    async def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+    def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
         # Eagerly read into memory in a worker thread, then yield from memory.
         # For very large files, a chunked thread-based generator would be better;
         # acceptable tradeoff for v0.

@@ -85,7 +85,7 @@ class FakeAsyncAdapter:
     async def download(self, key):
         return StoredFile(metadata=_meta(key), data=b"x")
 
-    async def stream(self, key, *, chunk_size=65536):  # AsyncIterator[bytes]
+    def stream(self, key, *, chunk_size=65536) -> AsyncIterator[bytes]:
         async def gen() -> AsyncIterator[bytes]:
             yield b"x"
 
@@ -165,7 +165,7 @@ async def test_async_files_delegates():
     assert meta.key == "k"
     sf = await files.download("k")
     assert sf.data == b"x"
-    async for chunk in await files.stream("k"):
+    async for chunk in files.stream("k"):
         assert chunk == b"x"
 
 

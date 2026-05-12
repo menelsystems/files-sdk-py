@@ -121,7 +121,7 @@ class AsyncS3Adapter:
         meta = self._meta(key, resp)
         return StoredFile(metadata=meta.model_copy(update={"size": len(data)}), data=data)
 
-    async def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+    def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
         async def gen() -> AsyncIterator[bytes]:
             async with self._client() as c:
                 try:
