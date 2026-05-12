@@ -195,7 +195,7 @@ description = "Unified Python SDK for cloud object/blob storage"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -1440,7 +1440,7 @@ description = "Amazon S3 adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -2267,7 +2267,7 @@ description = "Cloudflare R2 adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -2633,7 +2633,7 @@ description = "Local filesystem adapter for files-sdk — zero deps, ideal for d
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
