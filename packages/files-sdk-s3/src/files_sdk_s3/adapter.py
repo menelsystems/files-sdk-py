@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import IO, Any, ClassVar
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
@@ -49,6 +50,7 @@ class S3Adapter:
             )
         self.bucket = resolved_bucket
         self.multipart_threshold = multipart_threshold
+        self._transfer_config = TransferConfig(multipart_threshold=multipart_threshold)  # type: ignore[no-untyped-call]
         self._endpoint_url = endpoint_url
         self._client: Any = boto3.client(  # type: ignore[no-untyped-call]
             "s3",
@@ -117,7 +119,9 @@ class S3Adapter:
             self._wrap(
                 "upload",
                 self._client.upload_fileobj,
-                payload, self.bucket, key, ExtraArgs=extra or None,
+                payload, self.bucket, key,
+                ExtraArgs=extra or None,
+                Config=self._transfer_config,
             )
         return self.head(key)
 
