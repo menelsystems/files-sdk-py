@@ -3799,3 +3799,23 @@ All four should succeed. v0 is done.
 - Entry-point group `files_sdk.adapters` consistent across registry (Task 6), s3 pyproject (Task 9), r2 pyproject (Task 12), stub pyprojects (Task 14). ✓
 
 No gaps detected. Plan is ready for execution.
+
+---
+
+## Task 16: rustfs integration test suite (added post-v0)
+
+**Files:**
+- Create: `tests/integration/__init__.py` (empty)
+- Create: `tests/integration/conftest.py`
+- Create: `tests/integration/test_s3_integration.py`
+- Create: `tests/integration/test_multipart.py`
+- Modify: workspace `pyproject.toml` (register `integration` marker)
+- Modify: `.github/workflows/ci.yml` (add integration job)
+
+**Goal:** real S3-compatible server (not moto) in CI. Real network round-trips, real multipart, real presigned URLs end-to-end. rustfs is primary; MinIO fallback if rustfs proves finicky. Tests skip unless `FILES_SDK_INTEGRATION_ENDPOINT` is set so they never break local `uv run pytest`.
+
+Full per-step details captured in the dispatched subagent prompt; key acceptance:
+- `uv run pytest` (no env) — unchanged: 119 passed, 1 skipped
+- `FILES_SDK_INTEGRATION_ENDPOINT=http://localhost:9000 uv run pytest tests/integration -v -m integration` — ~16 tests pass against live rustfs
+- New CI job `integration` runs after unit job, boots a rustfs (or minio fallback) service container, executes the integration suite
+- `multipart_threshold=5MiB` path is exercised by uploading 12MiB via file-like body
