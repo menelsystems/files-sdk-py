@@ -1371,10 +1371,15 @@ def test_url_returns_http_string(adapter) -> None:
     k = _k()
     adapter.upload(k, b"x")
     url = adapter.url(k, expires_in=60)
-    assert url.startswith("http")
+    # Most adapters return http(s); LocalAdapter returns file:// — both acceptable.
+    assert url.startswith(("http", "file://"))
 
 
 def test_signed_upload_url_put(adapter) -> None:
+    # Adapters can opt out by setting the class attribute supports_signed_upload = False
+    # (e.g., LocalAdapter, where there's no signing authority). Default is True.
+    if not getattr(adapter, "supports_signed_upload", True):
+        pytest.skip("adapter does not support signed_upload_url")
     su = adapter.signed_upload_url(_k(), method="put")
     assert su.method == "PUT"
     assert su.url.startswith("http")
@@ -2600,6 +2605,600 @@ git commit -m "feat(r2): implement R2Adapter and AsyncR2Adapter subclassing S3"
 
 ---
 
+## Task 12.5: Local filesystem adapter (`files-sdk-local`)
+
+**Files:**
+- Create: `packages/files-sdk-local/pyproject.toml`
+- Create: `packages/files-sdk-local/README.md`
+- Create: `packages/files-sdk-local/src/files_sdk_local/__init__.py`
+- Create: `packages/files-sdk-local/src/files_sdk_local/py.typed`
+- Create: `packages/files-sdk-local/src/files_sdk_local/adapter.py`
+- Create: `packages/files-sdk-local/src/files_sdk_local/async_adapter.py`
+- Create: `packages/files-sdk-local/src/files_sdk_local/_storage.py`
+- Create: `packages/files-sdk-local/tests/conftest.py`
+- Create: `packages/files-sdk-local/tests/test_conformance.py`
+- Create: `packages/files-sdk-local/tests/test_async_conformance.py`
+- Create: `packages/files-sdk-local/tests/test_local_specific.py`
+
+> Zero extra deps. Pure stdlib `pathlib` / `hashlib` / `mimetypes` / `asyncio`. Key idea: store objects under `root/<key>` and metadata under `root/.files-sdk-meta/<key>.json`. Both adapters share the sync `_LocalStorage` core; async wraps each method in `asyncio.to_thread`.
+
+- [ ] **Step 1: Create `pyproject.toml`**
+
+Write file `packages/files-sdk-local/pyproject.toml`:
+```toml
+[project]
+name = "files-sdk-local"
+version = "0.1.0"
+description = "Local filesystem adapter for files-sdk — zero deps, ideal for dev/test"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "Carter Himmel", email = "carter@hellopatient.com"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "files-sdk",
+]
+
+[project.entry-points."files_sdk.adapters"]
+local = "files_sdk_local:LocalAdapter"
+"local-async" = "files_sdk_local:AsyncLocalAdapter"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/files_sdk_local"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+```
+
+- [ ] **Step 2: Create `py.typed`**
+
+Write empty file `packages/files-sdk-local/src/files_sdk_local/py.typed`.
+
+- [ ] **Step 3: Create README**
+
+Write file `packages/files-sdk-local/README.md`:
+```markdown
+# files-sdk-local
+
+Local filesystem adapter for [files-sdk](../files-sdk). Zero extra dependencies.
+Ideal for dev, tests, demos, and offline tooling.
+
+```python
+from files_sdk import Files
+from files_sdk_local import LocalAdapter
+
+files = Files(adapter=LocalAdapter(root="/tmp/my-store"))
+files.upload("hello.txt", b"hi")
+print(files.download("hello.txt").text())
+```
+
+## Notes
+- Objects live at `<root>/<key>`. Subdirectories are auto-created.
+- Sidecar metadata at `<root>/.files-sdk-meta/<key>.json` records content-type and user metadata.
+- `signed_upload_url()` is NOT supported (no signing authority on local fs) — raises `FilesError(code="invalid_input")`. The class attribute `supports_signed_upload = False` lets the conformance suite skip cleanly.
+- `url(key, public=False)` returns `file://...`. With `public=True` and `public_url_base=` (or env `FILES_SDK_LOCAL_PUBLIC_URL_BASE`) it returns `<base>/<key>` — useful when a webserver serves `root` over HTTP.
+- Keys are sanitized: anything that resolves outside `root` raises `FilesError(code="invalid_input")`.
+```
+
+- [ ] **Step 4: Write the shared sync storage core**
+
+Write file `packages/files-sdk-local/src/files_sdk_local/_storage.py`:
+```python
+"""Sync filesystem storage primitive shared by sync + async adapters."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import mimetypes
+import os
+import shutil
+from collections.abc import Iterator
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from files_sdk.errors import FilesError
+from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
+
+_META_DIR = ".files-sdk-meta"
+
+
+class _LocalStorage:
+    """Filesystem-backed object store. Used by LocalAdapter and AsyncLocalAdapter."""
+
+    def __init__(self, root: str | Path, *, public_url_base: str | None = None) -> None:
+        self.root = Path(root).expanduser().resolve()
+        self.root.mkdir(parents=True, exist_ok=True)
+        (self.root / _META_DIR).mkdir(exist_ok=True)
+        self._public_url_base = public_url_base
+
+    # ---- path helpers --------------------------------------------------------
+
+    def _safe_path(self, key: str) -> Path:
+        if not key or key.startswith("/") or "\0" in key:
+            raise FilesError(code="invalid_input", message=f"invalid key: {key!r}", provider="local")
+        target = (self.root / key).resolve()
+        try:
+            target.relative_to(self.root)
+        except ValueError as e:
+            raise FilesError(
+                code="invalid_input",
+                message=f"key escapes root: {key!r}",
+                provider="local",
+            ) from e
+        if target == self.root or _META_DIR in target.parts:
+            raise FilesError(code="invalid_input", message=f"reserved key: {key!r}", provider="local")
+        return target
+
+    def _meta_path(self, key: str) -> Path:
+        return self.root / _META_DIR / (key + ".json")
+
+    # ---- metadata sidecar ----------------------------------------------------
+
+    def _write_meta(self, key: str, *, content_type: str | None,
+                    metadata: dict[str, str] | None, cache_control: str | None) -> None:
+        mp = self._meta_path(key)
+        mp.parent.mkdir(parents=True, exist_ok=True)
+        mp.write_text(json.dumps({
+            "content_type": content_type,
+            "metadata": dict(metadata or {}),
+            "cache_control": cache_control,
+        }))
+
+    def _read_meta(self, key: str) -> dict[str, Any]:
+        mp = self._meta_path(key)
+        if not mp.exists():
+            return {"content_type": None, "metadata": {}, "cache_control": None}
+        return json.loads(mp.read_text())
+
+    def _build_metadata(self, key: str, path: Path) -> FileMetadata:
+        stat = path.stat()
+        meta = self._read_meta(key)
+        content_type = meta.get("content_type") or mimetypes.guess_type(key)[0]
+        with path.open("rb") as f:
+            etag = hashlib.md5(f.read()).hexdigest()  # noqa: S324 — etag, not crypto
+        return FileMetadata(
+            key=key,
+            size=stat.st_size,
+            etag=etag,
+            content_type=content_type,
+            last_modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+            metadata=dict(meta.get("metadata") or {}),
+        )
+
+    # ---- API surface ---------------------------------------------------------
+
+    def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
+        target = self._safe_path(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(body, (bytes, bytearray)):
+            target.write_bytes(bytes(body))
+        elif isinstance(body, str):
+            target.write_bytes(body.encode("utf-8"))
+        elif isinstance(body, Path):
+            shutil.copyfile(body, target)
+        else:
+            # file-like
+            with target.open("wb") as out:
+                shutil.copyfileobj(body, out)
+        self._write_meta(
+            key,
+            content_type=opts.get("content_type"),
+            metadata=opts.get("metadata"),
+            cache_control=opts.get("cache_control"),
+        )
+        return self._build_metadata(key, target)
+
+    def download(self, key: str) -> StoredFile:
+        target = self._safe_path(key)
+        if not target.exists():
+            raise FilesError(code="not_found", message=f"no such key: {key!r}", provider="local")
+        data = target.read_bytes()
+        meta = self._build_metadata(key, target)
+        return StoredFile(metadata=meta, data=data)
+
+    def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
+        target = self._safe_path(key)
+        if not target.exists():
+            raise FilesError(code="not_found", message=f"no such key: {key!r}", provider="local")
+        with target.open("rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    return
+                yield chunk
+
+    def head(self, key: str) -> FileMetadata:
+        target = self._safe_path(key)
+        if not target.exists():
+            raise FilesError(code="not_found", message=f"no such key: {key!r}", provider="local")
+        return self._build_metadata(key, target)
+
+    def delete(self, key: str) -> None:
+        target = self._safe_path(key)
+        if target.exists():
+            target.unlink()
+        mp = self._meta_path(key)
+        if mp.exists():
+            mp.unlink()
+        # idempotent — missing key is not an error
+
+    def list(self, *, prefix: str | None = None, cursor: str | None = None,
+             limit: int = 1000) -> ListPage:
+        items: list[FileMetadata] = []
+        all_keys: list[str] = []
+        for path in sorted(self.root.rglob("*")):
+            if not path.is_file():
+                continue
+            rel = path.relative_to(self.root).as_posix()
+            if rel.startswith(_META_DIR + "/") or rel == _META_DIR:
+                continue
+            if prefix is not None and not rel.startswith(prefix):
+                continue
+            all_keys.append(rel)
+
+        start = 0
+        if cursor is not None:
+            try:
+                start = int(cursor)
+            except ValueError as e:
+                raise FilesError(code="invalid_input", message=f"bad cursor: {cursor!r}",
+                                 provider="local") from e
+        slice_keys = all_keys[start:start + limit]
+        for key in slice_keys:
+            items.append(self._build_metadata(key, self.root / key))
+        next_cursor = str(start + limit) if start + limit < len(all_keys) else None
+        return ListPage(items=items, cursor=next_cursor)
+
+    def copy(self, src: str, dst: str) -> FileMetadata:
+        src_path = self._safe_path(src)
+        dst_path = self._safe_path(dst)
+        if not src_path.exists():
+            raise FilesError(code="not_found", message=f"no such key: {src!r}", provider="local")
+        dst_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src_path, dst_path)
+        src_meta = self._meta_path(src)
+        if src_meta.exists():
+            dst_meta = self._meta_path(dst)
+            dst_meta.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src_meta, dst_meta)
+        return self._build_metadata(dst, dst_path)
+
+    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+        target = self._safe_path(key)
+        if public:
+            base = self._public_url_base or os.environ.get("FILES_SDK_LOCAL_PUBLIC_URL_BASE")
+            if not base:
+                raise FilesError(
+                    code="invalid_input",
+                    message="public=True requires public_url_base= or FILES_SDK_LOCAL_PUBLIC_URL_BASE",
+                    provider="local",
+                )
+            return f"{base.rstrip('/')}/{key}"
+        return target.as_uri()
+
+    def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
+        raise FilesError(
+            code="invalid_input",
+            message="signed_upload_url is not supported by LocalAdapter",
+            provider="local",
+        )
+```
+
+- [ ] **Step 5: Sync adapter**
+
+Write file `packages/files-sdk-local/src/files_sdk_local/adapter.py`:
+```python
+"""Synchronous local filesystem adapter."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any, ClassVar
+
+from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
+
+from ._storage import _LocalStorage
+
+
+class LocalAdapter:
+    """Filesystem-backed storage adapter.
+
+    Stores objects under ``root/<key>`` with sidecar JSON metadata under
+    ``root/.files-sdk-meta/<key>.json``.
+    """
+
+    name: ClassVar[str] = "local"
+    supports_signed_upload: ClassVar[bool] = False
+
+    def __init__(self, root: str | Path, *, public_url_base: str | None = None) -> None:
+        self._storage = _LocalStorage(root, public_url_base=public_url_base)
+
+    @property
+    def root(self) -> Path:
+        return self._storage.root
+
+    def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
+        return self._storage.upload(key, body, **opts)
+
+    def download(self, key: str) -> StoredFile:
+        return self._storage.download(key)
+
+    def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
+        return self._storage.stream(key, chunk_size=chunk_size)
+
+    def head(self, key: str) -> FileMetadata:
+        return self._storage.head(key)
+
+    def delete(self, key: str) -> None:
+        self._storage.delete(key)
+
+    def list(self, *, prefix: str | None = None, cursor: str | None = None,
+             limit: int = 1000) -> ListPage:
+        return self._storage.list(prefix=prefix, cursor=cursor, limit=limit)
+
+    def copy(self, src: str, dst: str) -> FileMetadata:
+        return self._storage.copy(src, dst)
+
+    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+        return self._storage.url(key, expires_in=expires_in, public=public)
+
+    def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
+        return self._storage.signed_upload_url(key, **opts)
+
+    @property
+    def raw(self) -> Any:
+        return self._storage
+```
+
+- [ ] **Step 6: Async adapter (`asyncio.to_thread` wrapper)**
+
+Write file `packages/files-sdk-local/src/files_sdk_local/async_adapter.py`:
+```python
+"""Async local adapter — wraps sync I/O in asyncio.to_thread."""
+
+from __future__ import annotations
+
+import asyncio
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any, ClassVar
+
+from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
+
+from ._storage import _LocalStorage
+
+
+class AsyncLocalAdapter:
+    """Async local filesystem adapter."""
+
+    name: ClassVar[str] = "local-async"
+    supports_signed_upload: ClassVar[bool] = False
+
+    def __init__(self, root: str | Path, *, public_url_base: str | None = None) -> None:
+        self._storage = _LocalStorage(root, public_url_base=public_url_base)
+
+    @property
+    def root(self) -> Path:
+        return self._storage.root
+
+    async def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
+        return await asyncio.to_thread(self._storage.upload, key, body, **opts)
+
+    async def download(self, key: str) -> StoredFile:
+        return await asyncio.to_thread(self._storage.download, key)
+
+    async def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+        # Eagerly read into memory in a worker thread, then yield from memory.
+        # For very large files, a chunked thread-based generator would be better;
+        # acceptable tradeoff for v0.
+        async def gen() -> AsyncIterator[bytes]:
+            chunks = await asyncio.to_thread(
+                lambda: list(self._storage.stream(key, chunk_size=chunk_size))
+            )
+            for c in chunks:
+                yield c
+        return gen()
+
+    async def head(self, key: str) -> FileMetadata:
+        return await asyncio.to_thread(self._storage.head, key)
+
+    async def delete(self, key: str) -> None:
+        await asyncio.to_thread(self._storage.delete, key)
+
+    async def list(self, *, prefix: str | None = None, cursor: str | None = None,
+                   limit: int = 1000) -> ListPage:
+        return await asyncio.to_thread(
+            self._storage.list, prefix=prefix, cursor=cursor, limit=limit,
+        )
+
+    async def copy(self, src: str, dst: str) -> FileMetadata:
+        return await asyncio.to_thread(self._storage.copy, src, dst)
+
+    async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+        return await asyncio.to_thread(
+            self._storage.url, key, expires_in=expires_in, public=public,
+        )
+
+    async def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
+        return await asyncio.to_thread(self._storage.signed_upload_url, key, **opts)
+
+    @property
+    def raw(self) -> Any:
+        return self._storage
+```
+
+- [ ] **Step 7: Package `__init__.py`**
+
+Write file `packages/files-sdk-local/src/files_sdk_local/__init__.py`:
+```python
+"""files-sdk-local — local filesystem adapter."""
+
+from .adapter import LocalAdapter
+from .async_adapter import AsyncLocalAdapter
+
+__version__ = "0.1.0"
+__all__ = ["AsyncLocalAdapter", "LocalAdapter"]
+```
+
+- [ ] **Step 8: conftest with `tmp_path`-based fixtures**
+
+Write file `packages/files-sdk-local/tests/conftest.py`:
+```python
+"""Local adapter conformance fixtures — use tmp_path for isolation."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+
+@pytest.fixture
+def adapter(tmp_path: Path):
+    from files_sdk_local import LocalAdapter
+    return LocalAdapter(root=tmp_path / "store")
+
+
+@pytest.fixture
+def async_adapter(tmp_path: Path):
+    from files_sdk_local import AsyncLocalAdapter
+    return AsyncLocalAdapter(root=tmp_path / "store-async")
+```
+
+- [ ] **Step 9: Conformance import files**
+
+Write file `packages/files-sdk-local/tests/test_conformance.py`:
+```python
+"""Run the shared sync conformance suite against LocalAdapter."""
+
+from files_sdk.testing.conformance import *  # noqa: F401,F403
+```
+
+Write file `packages/files-sdk-local/tests/test_async_conformance.py`:
+```python
+"""Run the shared async conformance suite against AsyncLocalAdapter."""
+
+from files_sdk.testing.conformance import (  # noqa: F401
+    test_async_delete_idempotent,
+    test_async_download_missing_raises_not_found,
+    test_async_stream_yields_chunks,
+    test_async_upload_then_download_bytes,
+)
+```
+
+- [ ] **Step 10: Local-specific tests**
+
+Write file `packages/files-sdk-local/tests/test_local_specific.py`:
+```python
+"""LocalAdapter-specific behavior: path safety, file:// urls, signed-upload opt-out."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from files_sdk.errors import FilesError
+from files_sdk_local import AsyncLocalAdapter, LocalAdapter
+
+
+def test_creates_root_if_missing(tmp_path: Path) -> None:
+    root = tmp_path / "nested" / "store"
+    assert not root.exists()
+    LocalAdapter(root=root)
+    assert root.is_dir()
+
+
+def test_rejects_absolute_key(tmp_path: Path) -> None:
+    a = LocalAdapter(root=tmp_path)
+    with pytest.raises(FilesError) as ei:
+        a.upload("/etc/passwd", b"x")
+    assert ei.value.code == "invalid_input"
+
+
+def test_rejects_escaping_key(tmp_path: Path) -> None:
+    a = LocalAdapter(root=tmp_path / "store")
+    with pytest.raises(FilesError) as ei:
+        a.upload("../escape.txt", b"x")
+    assert ei.value.code == "invalid_input"
+
+
+def test_url_returns_file_uri_when_not_public(tmp_path: Path) -> None:
+    a = LocalAdapter(root=tmp_path)
+    a.upload("k.txt", b"x")
+    url = a.url("k.txt")
+    assert url.startswith("file://")
+    assert "k.txt" in url
+
+
+def test_url_public_requires_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FILES_SDK_LOCAL_PUBLIC_URL_BASE", raising=False)
+    a = LocalAdapter(root=tmp_path)
+    a.upload("k.txt", b"x")
+    with pytest.raises(FilesError) as ei:
+        a.url("k.txt", public=True)
+    assert ei.value.code == "invalid_input"
+
+
+def test_url_public_with_base(tmp_path: Path) -> None:
+    a = LocalAdapter(root=tmp_path, public_url_base="https://files.example.com")
+    a.upload("k.txt", b"x")
+    assert a.url("k.txt", public=True) == "https://files.example.com/k.txt"
+
+
+def test_signed_upload_opted_out(tmp_path: Path) -> None:
+    a = LocalAdapter(root=tmp_path)
+    assert a.supports_signed_upload is False
+    with pytest.raises(FilesError) as ei:
+        a.signed_upload_url("k.txt", method="put")
+    assert ei.value.code == "invalid_input"
+
+
+def test_async_supports_signed_upload_is_false(tmp_path: Path) -> None:
+    a = AsyncLocalAdapter(root=tmp_path)
+    assert a.supports_signed_upload is False
+```
+
+- [ ] **Step 11: Sync + test**
+
+Run: `uv sync`
+Run: `uv run pytest packages/files-sdk-local -v`
+Expected: 14 sync conformance (1 skipped: signed_upload_url) + 4 async conformance + 8 local-specific = ~25 pass + 1 skip.
+
+- [ ] **Step 12: Type-check**
+
+Run: `uv run pyright packages/files-sdk-local/src`
+Expected: 0 errors.
+
+- [ ] **Step 13: `from_name` smoke**
+
+Run: `uv run python -c "from files_sdk import Files; f = Files.from_name('local', root='/tmp/fsdk-test'); f.upload('hi.txt', b'hello'); print(f.download('hi.txt').text())"`
+Expected output: `hello`
+
+- [ ] **Step 14: Commit**
+
+```bash
+git add packages/files-sdk-local
+git commit -m "feat(local): add files-sdk-local pure-stdlib filesystem adapter"
+```
+
+---
+
 ## Task 13: Adapter `_template` directory
 
 **Files:**
@@ -3001,7 +3600,7 @@ Expected: all 15 stub packages installed editable. No errors.
 - [ ] **Step 4: Verify entry points register**
 
 Run: `uv run python -c "from importlib.metadata import entry_points; print(sorted(ep.name for ep in entry_points(group='files_sdk.adapters')))"`
-Expected: `['akamai', 'azure', 'box', 'digitalocean', 'dropbox', 'gcs', 'gdrive', 'hetzner', 'minio', 'netlify', 'onedrive', 'r2', 'r2-async', 's3', 's3-async', 'storj', 'supabase', 'uploadthing', 'vercel']`
+Expected: `['akamai', 'azure', 'box', 'digitalocean', 'dropbox', 'gcs', 'gdrive', 'hetzner', 'local', 'local-async', 'minio', 'netlify', 'onedrive', 'r2', 'r2-async', 's3', 's3-async', 'storj', 'supabase', 'uploadthing', 'vercel']`
 
 - [ ] **Step 5: Run all stub smoke tests**
 
@@ -3033,11 +3632,12 @@ git commit -m "feat(stubs): scaffold 15 stub adapter packages"
 
 Run: `uv run pytest -v`
 Expected: every test in every package passes. Tally roughly:
-- core: ~20 (errors, types, adapter, registry, client)
+- core: ~23 (errors, types, adapter, registry, client)
 - s3: 20
 - r2: 23
+- local: ~25 (with 1 skip for signed_upload_url)
 - 15 stubs × 1 = 15
-- total ≈ 78 passing
+- total ≈ 106 passing
 
 - [ ] **Step 2: Run pyright across all packages**
 
@@ -3097,11 +3697,27 @@ cloud object/blob storage providers.
 ## Packages
 
 - **[files-sdk](packages/files-sdk/)** — core client, types, adapter protocol
+- **[files-sdk-local](packages/files-sdk-local/)** — local filesystem (zero deps, ideal for dev/test)
 - **[files-sdk-s3](packages/files-sdk-s3/)** — Amazon S3 (sync + async)
 - **[files-sdk-r2](packages/files-sdk-r2/)** — Cloudflare R2 (sync + async)
 - 15 stub packages awaiting implementation — see each `CLAIM.md`
 
-## Quickstart
+## Quickstart (no cloud needed)
+
+```bash
+pip install files-sdk files-sdk-local
+```
+
+```python
+from files_sdk import Files
+from files_sdk_local import LocalAdapter
+
+files = Files(adapter=LocalAdapter(root="/tmp/my-store"))
+files.upload("hello.txt", b"hi")
+print(files.download("hello.txt").text())
+```
+
+## Quickstart (S3)
 
 ```bash
 pip install files-sdk files-sdk-s3

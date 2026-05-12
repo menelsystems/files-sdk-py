@@ -9,7 +9,9 @@
 
 ## 1. Goal
 
-Recreate `files-sdk.dev` (a JS unified-storage SDK) in Python with one unified API across cloud object/blob storage providers. v0 ships R2 and S3 adapters; the other 15 providers are scaffolded as claimable stub packages.
+Recreate `files-sdk.dev` (a JS unified-storage SDK) in Python with one unified API across cloud object/blob storage providers. v0 ships R2, S3, and Local (filesystem) adapters; the other 15 cloud providers are scaffolded as claimable stub packages.
+
+**Why the Local adapter:** Pure-stdlib, zero-dep adapter that writes to a directory on disk. Makes the SDK immediately usable for dev/test/demo without any cloud credentials, and serves as a reference implementation that exercises the conformance suite without mocking.
 
 **Non-goals (v0):**
 - Not a CLI tool. Library only.
@@ -64,6 +66,12 @@ files-sdk/
 │   ├── files-sdk-s3/
 │   │   ├── pyproject.toml
 │   │   └── src/files_sdk_s3/{__init__.py,adapter.py}
+│   ├── files-sdk-local/                 # filesystem adapter, zero extra deps
+│   │   ├── pyproject.toml               # entry point: local = files_sdk_local:LocalAdapter
+│   │   └── src/files_sdk_local/
+│   │       ├── __init__.py
+│   │       ├── adapter.py               # LocalAdapter (sync)
+│   │       └── async_adapter.py         # AsyncLocalAdapter (uses asyncio.to_thread)
 │   ├── _template/                       # reference impl for contributors
 │   │   ├── pyproject.toml.tmpl
 │   │   ├── CLAIM.md.tmpl
@@ -270,6 +278,19 @@ Adapter rule: **never let a provider-native exception escape**. Each adapter wra
 - Env vars: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (optional default).
 - `public=True` on `url()` returns the public r2.dev URL when bucket has public access enabled; otherwise raises `invalid_input`.
 
+### LocalAdapter (`files-sdk-local`)
+- v0 ships **both** sync (`LocalAdapter`) and async (`AsyncLocalAdapter`).
+- Zero extra deps. Pure stdlib (`pathlib`, `hashlib`, `mimetypes`, `asyncio`, `secrets`).
+- Constructor: `LocalAdapter(root: str | Path, *, public_url_base: str | None = None)`. `root` is created if it doesn't exist. All keys are stored under `root/`.
+- **Key layout:** the object key is interpreted as a relative path under `root`. Subdirectories are auto-created on upload. Reject keys that escape `root` (resolved real path must stay inside) — raises `invalid_input`.
+- **Metadata:** Stored side-by-side in `root/.files-sdk-meta/<key>.json` (content_type, user metadata, cache_control, etag-as-md5). `head()` reads this; if absent, infers content_type from `mimetypes.guess_type` and computes etag lazily.
+- **`url()`:**
+  - `public=True` requires `public_url_base` (or `FILES_SDK_LOCAL_PUBLIC_URL_BASE` env). Returns `f"{base}/{key}"`. Raises `invalid_input` otherwise.
+  - `public=False` returns a `file://` URL pointing at the resolved path. `expires_in` is ignored (no signing for local fs; documented).
+- **`signed_upload_url()`:** Not meaningfully supported on a local fs. Raises `FilesError(code="invalid_input", message="signed_upload_url is not supported by LocalAdapter")`. Documented exception in the conformance suite (skip on `LocalAdapter`).
+- **Async impl:** `AsyncLocalAdapter` wraps the sync calls in `asyncio.to_thread` to avoid blocking the event loop on disk I/O. Acceptable for v0; a fully native aiofiles-based impl is a follow-up.
+- Entry points: `local = files_sdk_local:LocalAdapter`, `local-async = files_sdk_local:AsyncLocalAdapter`.
+
 ## 9. Testing Strategy
 
 ### 9.1 Conformance Suite
@@ -292,6 +313,7 @@ Tests cover: upload-then-download round-trip, head metadata correctness, list pa
 ### 9.2 Backends for tests
 - **S3:** `moto` (in-process mock) for unit; `minio` via testcontainers for integration.
 - **R2:** the S3 moto path covers ~95%; gated real-R2 tests behind `FILES_SDK_R2_INTEGRATION=1`.
+- **Local:** uses `tmp_path` pytest fixture for an isolated dir per test. No mocks needed — this adapter is the cleanest target for the conformance suite. `signed_upload_url` cases are skipped via `pytest.mark.skip` injected into the conformance suite when the adapter has `supports_signed_upload = False` (class attribute, defaults to `True`).
 
 ### 9.3 Stub adapters
 Every stub adapter package ships a test that asserts `NotImplementedError` is raised so the conformance suite doesn't silently regress.
@@ -335,12 +357,12 @@ exclude = ["packages/_template"]
 ## 13. Acceptance Criteria for v0
 
 - [ ] `uv sync` at workspace root resolves all packages
-- [ ] `pytest` passes for `files-sdk`, `files-sdk-r2`, `files-sdk-s3`
-- [ ] `pyright --strict` clean on all three
-- [ ] Conformance suite passes for both R2 (via moto+endpoint shim) and S3 (moto)
-- [ ] `Files.from_name("r2", ...)` resolves successfully after `pip install files-sdk-r2`
+- [ ] `pytest` passes for `files-sdk`, `files-sdk-r2`, `files-sdk-s3`, `files-sdk-local`
+- [ ] `pyright --strict` clean on all four first-party packages
+- [ ] Conformance suite passes for: Local (tmp_path), R2 (via moto+endpoint shim), S3 (moto)
+- [ ] `Files.from_name("r2", ...)`, `Files.from_name("s3", ...)`, `Files.from_name("local", root=...)` all resolve correctly
 - [ ] All 15 stub packages installable, register entry points, and raise `NotImplementedError` from the conformance suite
-- [ ] README in `packages/files-sdk` shows the 9-method API with a worked R2 example
+- [ ] README in `packages/files-sdk` shows the 9-method API with a worked R2 example AND a Local quickstart that needs no credentials
 
 ## 14. Open Items (not blocking implementation)
 
