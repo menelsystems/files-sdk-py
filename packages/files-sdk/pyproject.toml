@@ -1,6 +1,6 @@
 [project]
 name = "files-sdk"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "Unified Python SDK for cloud object/blob storage"
 readme = "README.md"
 requires-python = ">=3.11"

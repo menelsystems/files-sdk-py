@@ -1,6 +1,6 @@
 [project]
 name = "files-sdk-r2"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "Cloudflare R2 adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
