@@ -18,16 +18,14 @@ class FileMetadata(BaseModel):
 
     key: str
     size: int = Field(ge=0)
-    etag: str | None
-    content_type: str | None
+    etag: str | None = None
+    content_type: str | None = None
     last_modified: datetime
     metadata: dict[str, str]
 
 
 class StoredFile(BaseModel):
     """A fully-buffered downloaded file."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     metadata: FileMetadata
     data: bytes
@@ -52,5 +50,5 @@ class SignedUpload(BaseModel):
     url: str
     method: Literal["PUT", "POST"]
     headers: dict[str, str]
-    fields: dict[str, str] | None
+    fields: dict[str, str] | None = None
     expires_at: datetime
