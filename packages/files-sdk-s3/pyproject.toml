@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
+keywords = ["s3", "aws", "storage", "files", "object-storage", "boto3"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -21,6 +22,11 @@ dependencies = [
     "botocore>=1.35",
     "aioboto3>=13",
 ]
+
+[project.urls]
+Homepage = "https://github.com/menelsystems/files-sdk-py"
+Repository = "https://github.com/menelsystems/files-sdk-py"
+Issues = "https://github.com/menelsystems/files-sdk-py/issues"
 
 [project.entry-points."files_sdk.adapters"]
 s3 = "files_sdk_s3:S3Adapter"
