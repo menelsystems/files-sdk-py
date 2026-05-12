@@ -1,6 +1,6 @@
 [project]
 name = "files-sdk"
-version = "0.1.0a1"
+dynamic = ["version"]
 description = "Unified Python SDK for cloud object/blob storage"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,10 @@ Issues = "https://github.com/menelsystems/files-sdk-py/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "^(?P<version>.+)$"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/files_sdk"]

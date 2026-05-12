@@ -1,6 +1,6 @@
 [project]
 name = "files-sdk-s3"
-version = "0.1.0a1"
+dynamic = ["version"]
 description = "Amazon S3 adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,6 +35,10 @@ s3 = "files_sdk_s3:S3Adapter"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "^(?P<version>.+)$"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/files_sdk_s3"]

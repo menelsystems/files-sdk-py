@@ -1,11 +1,17 @@
 """files-sdk-r2 — Cloudflare R2 adapter."""
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import TYPE_CHECKING
 
 from .adapter import R2Adapter
 from .async_adapter import AsyncR2Adapter
 
-__version__ = "0.1.0"
+try:
+    __version__ = _pkg_version("files-sdk-r2")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0+unknown"
+
 __all__ = ["AsyncR2Adapter", "R2Adapter"]
 
 if TYPE_CHECKING:

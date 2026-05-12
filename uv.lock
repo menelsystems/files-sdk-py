@@ -646,7 +646,6 @@ wheels = [
 
 [[package]]
 name = "files-sdk"
-version = "0.1.0a1"
 source = { editable = "packages/files-sdk" }
 dependencies = [
     { name = "pydantic" },
@@ -745,7 +744,6 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-local"
-version = "0.1.0a1"
 source = { editable = "packages/files-sdk-local" }
 dependencies = [
     { name = "files-sdk" },
@@ -789,7 +787,6 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-r2"
-version = "0.1.0a1"
 source = { editable = "packages/files-sdk-r2" }
 dependencies = [
     { name = "files-sdk" },
@@ -804,7 +801,6 @@ requires-dist = [
 
 [[package]]
 name = "files-sdk-s3"
-version = "0.1.0a1"
 source = { editable = "packages/files-sdk-s3" }
 dependencies = [
     { name = "aioboto3" },
