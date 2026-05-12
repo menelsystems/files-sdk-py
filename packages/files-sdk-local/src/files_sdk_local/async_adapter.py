@@ -32,15 +32,21 @@ class AsyncLocalAdapter:
         return await asyncio.to_thread(self._storage.download, key)
 
     def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
-        # Eagerly read into memory in a worker thread, then yield from memory.
-        # For very large files, a chunked thread-based generator would be better;
-        # acceptable tradeoff for v0.
+        # Read one chunk at a time off the threadpool. The underlying sync
+        # generator holds a single file handle open across iterations; each
+        # `next()` call advances by exactly chunk_size bytes, so memory stays
+        # bounded by one chunk regardless of file size. Sequential awaits
+        # guarantee only one `next()` runs at a time, so the cross-thread
+        # generator access is safe under the GIL.
         async def gen() -> AsyncIterator[bytes]:
-            chunks = await asyncio.to_thread(
-                lambda: list(self._storage.stream(key, chunk_size=chunk_size))
-            )
-            for c in chunks:
-                yield c
+            sync_iter = await asyncio.to_thread(self._storage.stream, key, chunk_size=chunk_size)
+            sentinel: object = object()
+            while True:
+                chunk = await asyncio.to_thread(next, sync_iter, sentinel)
+                if chunk is sentinel:
+                    return
+                assert isinstance(chunk, bytes)
+                yield chunk
 
         return gen()
 

@@ -2,6 +2,17 @@
 
 Lockstep monorepo release: a single tag `v<version>` publishes **all** first-party packages at the same version. Per-package version skew is structurally prevented — every pyproject reads `version` from the shared `VERSION` file at the repo root via hatchling's dynamic-version source.
 
+## One-time GitHub Environment setup
+
+The release workflow deploys through a dedicated `pypi` environment so commit access and publish rights stay decoupled. PyPI's own docs strongly recommend this pattern. Set it up once:
+
+1. <https://github.com/menelsystems/files-sdk-py/settings/environments> → **New environment** → name it `pypi`.
+2. (Recommended) **Deployment branches and tags** → "Selected branches and tags" → add a rule for `v*`. Now only pushes of `v*` tags can deploy through this environment.
+3. (Optional but future-proof) **Required reviewers** → add yourself / org admins. With reviewers configured, every release pauses for human approval before publishing.
+4. Save.
+
+The workflow declares `environment: pypi` on its release job, so it's already wired to deploy through this env once it exists.
+
 ## One-time PyPI setup (per package)
 
 For each package: `files-sdk`, `files-sdk-s3`, `files-sdk-r2`, `files-sdk-local`.
@@ -13,7 +24,7 @@ For each package: `files-sdk`, `files-sdk-s3`, `files-sdk-r2`, `files-sdk-local`
    - **Owner**: your GitHub username or org (e.g. `menelsystems`)
    - **Repository name**: `files-sdk-py`
    - **Workflow name**: `release.yml`
-   - **Environment**: *leave blank for now; add later if you want manual approval gates*
+   - **Environment**: `pypi` *(must match the environment name configured above — trust narrows to deployments through this env)*
 4. Save. The first successful publish creates the real project on PyPI and converts the pending publisher into a normal one automatically.
 
 ## One-time tag protection (immutable tags)

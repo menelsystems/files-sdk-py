@@ -39,6 +39,15 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # All publishing flows through a dedicated `pypi` environment so future
+    # maintainers can have repo commit access without inheriting publish
+    # rights. Configure in repo settings → Environments → "pypi" with optional
+    # required reviewers and deployment-branch protections (recommended: only
+    # `v*` tags can deploy). PyPI's pending-publisher entries MUST list
+    # "Environment: pypi" too — trust narrows to deployments through this env.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/files-sdk/
     permissions:
       id-token: write        # OIDC for PyPI Trusted Publishing + GitHub attestations
       contents: write        # gh release create
