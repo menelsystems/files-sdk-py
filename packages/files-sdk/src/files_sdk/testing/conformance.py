@@ -151,3 +151,51 @@ def test_zero_byte_upload(adapter) -> None:
     sf = adapter.download(k)
     assert sf.data == b""
     assert sf.metadata.size == 0
+
+
+# --- async variants (require ``async_adapter`` fixture) ---------------------
+
+import pytest as _pytest
+
+
+@_pytest.mark.asyncio
+async def test_async_upload_then_download_bytes(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, b"hello")
+    sf = await async_adapter.download(k)
+    assert sf.data == b"hello"
+
+
+@_pytest.mark.asyncio
+async def test_async_delete_idempotent(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.delete(k)
+    await async_adapter.upload(k, b"x")
+    await async_adapter.delete(k)
+    await async_adapter.delete(k)
+
+
+@_pytest.mark.asyncio
+async def test_async_download_missing_raises_not_found(async_adapter) -> None:
+    with _pytest.raises(FilesError) as ei:
+        await async_adapter.download(_k("nope-a"))
+    assert ei.value.code == "not_found"
+
+
+@_pytest.mark.asyncio
+async def test_async_stream_yields_chunks(async_adapter) -> None:
+    k = _k("a")
+    payload = b"abc" * 1000
+    await async_adapter.upload(k, payload)
+    got = b""
+    async for chunk in await async_adapter.stream(k, chunk_size=128):
+        got += chunk
+    assert got == payload
+
+
+__all__ += [
+    "test_async_upload_then_download_bytes",
+    "test_async_delete_idempotent",
+    "test_async_download_missing_raises_not_found",
+    "test_async_stream_yields_chunks",
+]
