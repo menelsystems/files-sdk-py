@@ -99,3 +99,29 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           FILES_SDK_R2_INTEGRATION: "1"
         run: uv run pytest tests/integration/test_r2_real.py -v -m r2_integration
+
+  aws-s3-integration:
+    # Real Amazon S3 round-trip. Manual trigger only (workflow_dispatch) to
+    # avoid surprising S3 costs on every PR. Bucket must be a dedicated test
+    # bucket (no automatic cleanup). Triggered via:
+    #   gh workflow run ci.yml                              (real GitHub)
+    #   act workflow_dispatch -j aws-s3-integration ...     (local)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set Python 3.13
+        run: uv python install 3.13
+      - name: Install
+        run: uv sync --all-packages
+      - name: AWS S3 integration tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          FILES_SDK_AWS_S3_INTEGRATION: "1"
+        run: uv run pytest tests/integration/test_aws_s3_real.py -v -m aws_s3_integration
