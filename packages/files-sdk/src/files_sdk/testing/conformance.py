@@ -191,9 +191,111 @@ async def test_async_stream_yields_chunks(async_adapter) -> None:
     assert got == payload
 
 
+@pytest.mark.asyncio
+async def test_async_upload_then_download_str(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, "héllo")
+    sf = await async_adapter.download(k)
+    assert sf.text() == "héllo"
+
+
+@pytest.mark.asyncio
+async def test_async_upload_from_file_like(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, io.BytesIO(b"file-like"))
+    sf = await async_adapter.download(k)
+    assert sf.data == b"file-like"
+
+
+@pytest.mark.asyncio
+async def test_async_head_returns_metadata(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, b"abc", content_type="text/plain")
+    meta = await async_adapter.head(k)
+    assert meta.size == 3
+    assert meta.content_type == "text/plain"
+
+
+@pytest.mark.asyncio
+async def test_async_list_prefix_filters(async_adapter) -> None:
+    p = f"listtest-a/{uuid.uuid4().hex}"
+    for i in range(3):
+        await async_adapter.upload(f"{p}/f{i}.txt", b"x")
+    await async_adapter.upload(f"{p}-other/f.txt", b"y")
+    page = await async_adapter.list(prefix=f"{p}/")
+    keys = {item.key for item in page.items}
+    assert len(keys) >= 3
+    assert all(k.startswith(f"{p}/") for k in keys)
+
+
+@pytest.mark.asyncio
+async def test_async_list_pagination_cursor(async_adapter) -> None:
+    p = f"paging-a/{uuid.uuid4().hex}"
+    for i in range(5):
+        await async_adapter.upload(f"{p}/{i:02d}.txt", b"x")
+    page1 = await async_adapter.list(prefix=f"{p}/", limit=2)
+    assert len(page1.items) == 2
+    if page1.cursor is not None:
+        page2 = await async_adapter.list(prefix=f"{p}/", cursor=page1.cursor, limit=2)
+        first_keys = {i.key for i in page1.items}
+        second_keys = {i.key for i in page2.items}
+        assert first_keys.isdisjoint(second_keys)
+
+
+@pytest.mark.asyncio
+async def test_async_copy_creates_destination(async_adapter) -> None:
+    src, dst = _k("src-a"), _k("dst-a")
+    await async_adapter.upload(src, b"copy-me")
+    await async_adapter.copy(src, dst)
+    assert (await async_adapter.download(dst)).data == b"copy-me"
+
+
+@pytest.mark.asyncio
+async def test_async_url_returns_http_string(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, b"x")
+    url = await async_adapter.url(k, expires_in=60)
+    assert url.startswith(("http", "file://"))
+
+
+@pytest.mark.asyncio
+async def test_async_signed_upload_url_put(async_adapter) -> None:
+    if not getattr(async_adapter, "supports_signed_upload", True):
+        pytest.skip("adapter does not support signed_upload_url")
+    su = await async_adapter.signed_upload_url(_k("a"), method="put")
+    assert su.method == "PUT"
+    assert su.url.startswith("http")
+
+
+@pytest.mark.asyncio
+async def test_async_unicode_key_roundtrip(async_adapter) -> None:
+    k = f"unicode-a/{uuid.uuid4().hex}/héllo wörld.txt"
+    await async_adapter.upload(k, b"x")
+    assert (await async_adapter.download(k)).data == b"x"
+
+
+@pytest.mark.asyncio
+async def test_async_zero_byte_upload(async_adapter) -> None:
+    k = _k("a")
+    await async_adapter.upload(k, b"")
+    sf = await async_adapter.download(k)
+    assert sf.data == b""
+    assert sf.metadata.size == 0
+
+
 __all__ += [
+    "test_async_copy_creates_destination",
     "test_async_delete_idempotent",
     "test_async_download_missing_raises_not_found",
+    "test_async_head_returns_metadata",
+    "test_async_list_pagination_cursor",
+    "test_async_list_prefix_filters",
+    "test_async_signed_upload_url_put",
     "test_async_stream_yields_chunks",
+    "test_async_unicode_key_roundtrip",
+    "test_async_upload_from_file_like",
     "test_async_upload_then_download_bytes",
+    "test_async_upload_then_download_str",
+    "test_async_url_returns_http_string",
+    "test_async_zero_byte_upload",
 ]
