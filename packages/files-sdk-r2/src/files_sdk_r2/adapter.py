@@ -23,6 +23,7 @@ class R2Adapter(S3Adapter):
         secret_access_key: str | None = None,
         public_url_base: str | None = None,
         multipart_threshold: int | None = None,
+        _endpoint_override: str | None = None,
     ) -> None:
         resolved_account = account_id or os.environ.get("R2_ACCOUNT_ID")
         if not resolved_account:
@@ -36,12 +37,13 @@ class R2Adapter(S3Adapter):
         resolved_secret = secret_access_key or os.environ.get("R2_SECRET_ACCESS_KEY")
         self._account_id = resolved_account
         self._public_url_base = public_url_base or os.environ.get("R2_PUBLIC_URL_BASE")
+        default_endpoint = f"https://{resolved_account}.r2.cloudflarestorage.com"
         kwargs: dict[str, Any] = dict(
             bucket=resolved_bucket,
             region="auto",
             access_key_id=resolved_key,
             secret_access_key=resolved_secret,
-            endpoint_url=f"https://{resolved_account}.r2.cloudflarestorage.com",
+            endpoint_url=_endpoint_override or default_endpoint,
         )
         if multipart_threshold is not None:
             kwargs["multipart_threshold"] = multipart_threshold

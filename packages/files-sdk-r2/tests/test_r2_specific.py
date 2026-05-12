@@ -43,3 +43,23 @@ def test_async_r2_requires_account_id(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(FilesError) as ei:
         AsyncR2Adapter(bucket="b")
     assert ei.value.code == "unauthorized"
+
+
+def test_r2_roundtrip_via_moto_endpoint(
+    moto_endpoint: str,
+    r2_bucket: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end smoke that R2Adapter's kwargs forwarding to S3Adapter actually works.
+
+    Constructs R2Adapter against the moto server via _endpoint_override, which bypasses
+    R2's hardcoded Cloudflare endpoint while exercising the full R2Adapter init path.
+    _endpoint_override is intentionally undocumented for production use (testing only).
+    """
+    monkeypatch.setenv("R2_ACCOUNT_ID", "test-account")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "testing")
+    a = R2Adapter(bucket=r2_bucket, _endpoint_override=moto_endpoint)
+    a.upload("hello.txt", b"r2-roundtrip")
+    sf = a.download("hello.txt")
+    assert sf.data == b"r2-roundtrip"
