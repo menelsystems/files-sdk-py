@@ -5,9 +5,24 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "files-sdk",
+    "files-sdk-akamai",
+    "files-sdk-azure",
+    "files-sdk-box",
+    "files-sdk-digitalocean",
+    "files-sdk-dropbox",
+    "files-sdk-gcs",
+    "files-sdk-gdrive",
+    "files-sdk-hetzner",
     "files-sdk-local",
+    "files-sdk-minio",
+    "files-sdk-netlify",
+    "files-sdk-onedrive",
     "files-sdk-r2",
     "files-sdk-s3",
+    "files-sdk-storj",
+    "files-sdk-supabase",
+    "files-sdk-uploadthing",
+    "files-sdk-vercel",
     "files-sdk-workspace",
 ]
 
@@ -586,9 +601,130 @@ dependencies = [
 requires-dist = [{ name = "pydantic", specifier = ">=2.8" }]
 
 [[package]]
+name = "files-sdk-akamai"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-akamai" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-azure"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-azure" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-box"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-box" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-digitalocean"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-digitalocean" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-dropbox"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-dropbox" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-gcs"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-gcs" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-gdrive"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-gdrive" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-hetzner"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-hetzner" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
 name = "files-sdk-local"
 version = "0.1.0"
 source = { editable = "packages/files-sdk-local" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-minio"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-minio" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-netlify"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-netlify" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-onedrive"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-onedrive" }
 dependencies = [
     { name = "files-sdk" },
 ]
@@ -629,6 +765,50 @@ requires-dist = [
     { name = "botocore", specifier = ">=1.35" },
     { name = "files-sdk", editable = "packages/files-sdk" },
 ]
+
+[[package]]
+name = "files-sdk-storj"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-storj" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-supabase"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-supabase" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-uploadthing"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-uploadthing" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+
+[[package]]
+name = "files-sdk-vercel"
+version = "0.0.0"
+source = { editable = "packages/files-sdk-vercel" }
+dependencies = [
+    { name = "files-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-workspace"
