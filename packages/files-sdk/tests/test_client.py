@@ -186,3 +186,28 @@ def test_files_from_name_loads_via_registry():
         files = Files.from_name("fake", bucket="my-bucket")
     assert isinstance(files._adapter, FakeAdapter)
     assert files._adapter.bucket == "my-bucket"
+
+
+def test_files_from_name_rejects_async_adapter():
+    with patch("files_sdk.client.load_adapter_class") as mocked:
+        mocked.return_value = FakeAsyncAdapter
+        with pytest.raises(FilesError) as ei:
+            Files.from_name("fake-async")
+    assert ei.value.code == "invalid_input"
+    assert "async" in ei.value.message.lower()
+
+
+def test_async_files_from_name_loads_via_registry():
+    with patch("files_sdk.client.load_adapter_class") as mocked:
+        mocked.return_value = FakeAsyncAdapter
+        files = AsyncFiles.from_name("fake-async")
+    assert isinstance(files._adapter, FakeAsyncAdapter)
+
+
+def test_async_files_from_name_rejects_sync_adapter():
+    with patch("files_sdk.client.load_adapter_class") as mocked:
+        mocked.return_value = FakeSyncAdapter
+        with pytest.raises(FilesError) as ei:
+            AsyncFiles.from_name("fake")
+    assert ei.value.code == "invalid_input"
+    assert "sync" in ei.value.message.lower()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
-from typing import Any
+from typing import Any, cast
 
 from ._registry import load_adapter_class
 from .adapter import Adapter, AsyncAdapter, is_async_adapter
@@ -25,7 +25,13 @@ class Files:
     @classmethod
     def from_name(cls, name: str, **adapter_kwargs: Any) -> Files:
         adapter_cls = load_adapter_class(name)
-        return cls(adapter=adapter_cls(**adapter_kwargs))
+        instance = adapter_cls(**adapter_kwargs)
+        if is_async_adapter(instance):
+            raise FilesError(
+                code="invalid_input",
+                message=(f"adapter {name!r} is async; use AsyncFiles.from_name({name!r}) instead"),
+            )
+        return cls(adapter=cast(Adapter, instance))
 
     def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
         return self._adapter.upload(key, body, **opts)
@@ -79,7 +85,13 @@ class AsyncFiles:
     @classmethod
     def from_name(cls, name: str, **adapter_kwargs: Any) -> AsyncFiles:
         adapter_cls = load_adapter_class(name)
-        return cls(adapter=adapter_cls(**adapter_kwargs))
+        instance = adapter_cls(**adapter_kwargs)
+        if not is_async_adapter(instance):
+            raise FilesError(
+                code="invalid_input",
+                message=(f"adapter {name!r} is sync; use Files.from_name({name!r}) instead"),
+            )
+        return cls(adapter=cast(AsyncAdapter, instance))
 
     async def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
         return await self._adapter.upload(key, body, **opts)
