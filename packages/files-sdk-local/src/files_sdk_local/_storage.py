@@ -8,7 +8,7 @@ import mimetypes
 import os
 import shutil
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,9 @@ class _LocalStorage:
 
     def _safe_path(self, key: str) -> Path:
         if not key or key.startswith("/") or "\0" in key:
-            raise FilesError(code="invalid_input", message=f"invalid key: {key!r}", provider="local")
+            raise FilesError(
+                code="invalid_input", message=f"invalid key: {key!r}", provider="local"
+            )
         target = (self.root / key).resolve()
         try:
             target.relative_to(self.root)
@@ -44,7 +46,9 @@ class _LocalStorage:
                 provider="local",
             ) from e
         if target == self.root or _META_DIR in target.parts:
-            raise FilesError(code="invalid_input", message=f"reserved key: {key!r}", provider="local")
+            raise FilesError(
+                code="invalid_input", message=f"reserved key: {key!r}", provider="local"
+            )
         return target
 
     def _meta_path(self, key: str) -> Path:
@@ -52,15 +56,25 @@ class _LocalStorage:
 
     # ---- metadata sidecar ----------------------------------------------------
 
-    def _write_meta(self, key: str, *, content_type: str | None,
-                    metadata: dict[str, str] | None, cache_control: str | None) -> None:
+    def _write_meta(
+        self,
+        key: str,
+        *,
+        content_type: str | None,
+        metadata: dict[str, str] | None,
+        cache_control: str | None,
+    ) -> None:
         mp = self._meta_path(key)
         mp.parent.mkdir(parents=True, exist_ok=True)
-        mp.write_text(json.dumps({
-            "content_type": content_type,
-            "metadata": dict(metadata or {}),
-            "cache_control": cache_control,
-        }))
+        mp.write_text(
+            json.dumps(
+                {
+                    "content_type": content_type,
+                    "metadata": dict(metadata or {}),
+                    "cache_control": cache_control,
+                }
+            )
+        )
 
     def _read_meta(self, key: str) -> dict[str, Any]:
         mp = self._meta_path(key)
@@ -73,13 +87,13 @@ class _LocalStorage:
         meta = self._read_meta(key)
         content_type = meta.get("content_type") or mimetypes.guess_type(key)[0]
         with path.open("rb") as f:
-            etag = hashlib.md5(f.read()).hexdigest()  # noqa: S324 — etag, not crypto
+            etag = hashlib.md5(f.read()).hexdigest()
         return FileMetadata(
             key=key,
             size=stat.st_size,
             etag=etag,
             content_type=content_type,
-            last_modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+            last_modified=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
             metadata=dict(meta.get("metadata") or {}),
         )
 
@@ -140,8 +154,9 @@ class _LocalStorage:
             mp.unlink()
         # idempotent — missing key is not an error
 
-    def list(self, *, prefix: str | None = None, cursor: str | None = None,
-             limit: int = 1000) -> ListPage:
+    def list(
+        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
+    ) -> ListPage:
         items: list[FileMetadata] = []
         all_keys: list[str] = []
         for path in sorted(self.root.rglob("*")):
@@ -159,9 +174,10 @@ class _LocalStorage:
             try:
                 start = int(cursor)
             except ValueError as e:
-                raise FilesError(code="invalid_input", message=f"bad cursor: {cursor!r}",
-                                 provider="local") from e
-        slice_keys = all_keys[start:start + limit]
+                raise FilesError(
+                    code="invalid_input", message=f"bad cursor: {cursor!r}", provider="local"
+                ) from e
+        slice_keys = all_keys[start : start + limit]
         for key in slice_keys:
             items.append(self._build_metadata(key, self.root / key))
         next_cursor = str(start + limit) if start + limit < len(all_keys) else None

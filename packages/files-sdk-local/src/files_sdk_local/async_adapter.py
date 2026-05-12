@@ -41,6 +41,7 @@ class AsyncLocalAdapter:
             )
             for c in chunks:
                 yield c
+
         return gen()
 
     async def head(self, key: str) -> FileMetadata:
@@ -49,10 +50,14 @@ class AsyncLocalAdapter:
     async def delete(self, key: str) -> None:
         await asyncio.to_thread(self._storage.delete, key)
 
-    async def list(self, *, prefix: str | None = None, cursor: str | None = None,
-                   limit: int = 1000) -> ListPage:
+    async def list(
+        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
+    ) -> ListPage:
         return await asyncio.to_thread(
-            self._storage.list, prefix=prefix, cursor=cursor, limit=limit,
+            self._storage.list,
+            prefix=prefix,
+            cursor=cursor,
+            limit=limit,
         )
 
     async def copy(self, src: str, dst: str) -> FileMetadata:
@@ -60,7 +65,10 @@ class AsyncLocalAdapter:
 
     async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
         return await asyncio.to_thread(
-            self._storage.url, key, expires_in=expires_in, public=public,
+            self._storage.url,
+            key,
+            expires_in=expires_in,
+            public=public,
         )
 
     async def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:

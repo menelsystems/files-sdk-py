@@ -47,10 +47,12 @@ def s3_bucket(moto_endpoint: str, aws_credentials: None) -> str:
 @pytest.fixture
 def adapter(moto_endpoint: str, s3_bucket: str):
     from files_sdk_s3 import S3Adapter
+
     return S3Adapter(bucket=s3_bucket, endpoint_url=moto_endpoint, region="us-east-1")
 
 
 @pytest.fixture
 def async_adapter(moto_endpoint: str, s3_bucket: str):
     from files_sdk_s3 import AsyncS3Adapter
+
     return AsyncS3Adapter(bucket=s3_bucket, endpoint_url=moto_endpoint, region="us-east-1")

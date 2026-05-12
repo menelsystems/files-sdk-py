@@ -1,18 +1,23 @@
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from files_sdk import AsyncFiles, Files
 from files_sdk.errors import FilesError
 from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile
 
 
 def _meta(key: str = "k") -> FileMetadata:
-    return FileMetadata(key=key, size=0, etag=None, content_type=None,
-                        last_modified=datetime(2026, 1, 1, tzinfo=UTC), metadata={})
+    return FileMetadata(
+        key=key,
+        size=0,
+        etag=None,
+        content_type=None,
+        last_modified=datetime(2026, 1, 1, tzinfo=UTC),
+        metadata={},
+    )
 
 
 class FakeSyncAdapter:
@@ -58,8 +63,13 @@ class FakeSyncAdapter:
 
     def signed_upload_url(self, key, **opts):
         self._record("signed_upload_url", key, **opts)
-        return SignedUpload(url="https://x", method="PUT", headers={}, fields=None,
-                            expires_at=datetime(2026, 1, 1, tzinfo=UTC))
+        return SignedUpload(
+            url="https://x",
+            method="PUT",
+            headers={},
+            fields=None,
+            expires_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
 
     @property
     def raw(self):
@@ -78,6 +88,7 @@ class FakeAsyncAdapter:
     async def stream(self, key, *, chunk_size=65536):  # AsyncIterator[bytes]
         async def gen() -> AsyncIterator[bytes]:
             yield b"x"
+
         return gen()
 
     async def head(self, key):
@@ -96,8 +107,13 @@ class FakeAsyncAdapter:
         return f"https://example/{key}"
 
     async def signed_upload_url(self, key, **opts):
-        return SignedUpload(url="https://x", method="PUT", headers={}, fields=None,
-                            expires_at=datetime(2026, 1, 1, tzinfo=UTC))
+        return SignedUpload(
+            url="https://x",
+            method="PUT",
+            headers={},
+            fields=None,
+            expires_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
 
     @property
     def raw(self):
@@ -117,8 +133,15 @@ def test_files_delegates_all_methods():
     files.url("k", expires_in=60, public=True)
     files.signed_upload_url("k", method="put")
     assert {c[0] for c in adapter.calls} == {
-        "upload", "download", "stream", "head", "delete",
-        "list", "copy", "url", "signed_upload_url",
+        "upload",
+        "download",
+        "stream",
+        "head",
+        "delete",
+        "list",
+        "copy",
+        "url",
+        "signed_upload_url",
     }
 
 

@@ -1,6 +1,5 @@
 import boto3
 import pytest
-
 from files_sdk.errors import FilesError
 from files_sdk_s3 import S3Adapter
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any, ClassVar
 
@@ -12,7 +12,6 @@ import boto3
 from boto3.s3.transfer import TransferConfig
 from botocore.client import Config
 from botocore.exceptions import ClientError
-
 from files_sdk.errors import FilesError
 from files_sdk.types import (
     FileMetadata,
@@ -54,7 +53,9 @@ class S3Adapter:
         self._endpoint_url = endpoint_url
         self._client: Any = boto3.client(  # type: ignore[no-untyped-call]
             "s3",
-            region_name=region or os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"),
+            region_name=region
+            or os.environ.get("AWS_REGION")
+            or os.environ.get("AWS_DEFAULT_REGION"),
             aws_access_key_id=access_key_id or os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=secret_access_key or os.environ.get("AWS_SECRET_ACCESS_KEY"),
             aws_session_token=session_token or os.environ.get("AWS_SESSION_TOKEN"),
@@ -94,7 +95,7 @@ class S3Adapter:
             size=int(resp.get("ContentLength", 0)),
             etag=(resp.get("ETag") or "").strip('"') or None,
             content_type=resp.get("ContentType"),
-            last_modified=resp.get("LastModified") or datetime.now(timezone.utc),
+            last_modified=resp.get("LastModified") or datetime.now(UTC),
             metadata=dict(resp.get("Metadata") or {}),
         )
 
@@ -113,13 +114,18 @@ class S3Adapter:
             self._wrap(
                 "upload",
                 self._client.put_object,
-                Bucket=self.bucket, Key=key, Body=payload, **extra,
+                Bucket=self.bucket,
+                Key=key,
+                Body=payload,
+                **extra,
             )
         else:
             self._wrap(
                 "upload",
                 self._client.upload_fileobj,
-                payload, self.bucket, key,
+                payload,
+                self.bucket,
+                key,
                 ExtraArgs=extra or None,
                 Config=self._transfer_config,
             )
@@ -127,7 +133,10 @@ class S3Adapter:
 
     def download(self, key: str) -> StoredFile:
         resp = self._wrap(
-            "download", self._client.get_object, Bucket=self.bucket, Key=key,
+            "download",
+            self._client.get_object,
+            Bucket=self.bucket,
+            Key=key,
         )
         data = resp["Body"].read()
         meta = self._meta_from_head(key, resp)
@@ -136,7 +145,10 @@ class S3Adapter:
 
     def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
         resp = self._wrap(
-            "stream", self._client.get_object, Bucket=self.bucket, Key=key,
+            "stream",
+            self._client.get_object,
+            Bucket=self.bucket,
+            Key=key,
         )
         body = resp["Body"]
         try:
@@ -150,14 +162,20 @@ class S3Adapter:
 
     def head(self, key: str) -> FileMetadata:
         resp = self._wrap(
-            "head", self._client.head_object, Bucket=self.bucket, Key=key,
+            "head",
+            self._client.head_object,
+            Bucket=self.bucket,
+            Key=key,
         )
         return self._meta_from_head(key, resp)
 
     def delete(self, key: str) -> None:
         # S3 delete_object is idempotent and does not 404 on missing keys
         self._wrap(
-            "delete", self._client.delete_object, Bucket=self.bucket, Key=key,
+            "delete",
+            self._client.delete_object,
+            Bucket=self.bucket,
+            Key=key,
         )
 
     def list(
@@ -179,7 +197,7 @@ class S3Adapter:
                 size=int(obj.get("Size", 0)),
                 etag=(obj.get("ETag") or "").strip('"') or None,
                 content_type=None,
-                last_modified=obj.get("LastModified") or datetime.now(timezone.utc),
+                last_modified=obj.get("LastModified") or datetime.now(UTC),
                 metadata={},
             )
             for obj in resp.get("Contents", [])
@@ -226,8 +244,11 @@ class S3Adapter:
             )
             headers = {"Content-Type": content_type} if content_type else {}
             return SignedUpload(
-                url=url, method="PUT", headers=headers, fields=None,
-                expires_at=datetime.now(timezone.utc) + timedelta(seconds=expires_in),
+                url=url,
+                method="PUT",
+                headers=headers,
+                fields=None,
+                expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
             )
         if method == "post":
             conditions: list[Any] = []
@@ -238,12 +259,17 @@ class S3Adapter:
             post = self._wrap(
                 "signed_upload_url",
                 self._client.generate_presigned_post,
-                Bucket=self.bucket, Key=key, Conditions=conditions or None,
+                Bucket=self.bucket,
+                Key=key,
+                Conditions=conditions or None,
                 ExpiresIn=expires_in,
             )
             return SignedUpload(
-                url=post["url"], method="POST", headers={}, fields=dict(post["fields"]),
-                expires_at=datetime.now(timezone.utc) + timedelta(seconds=expires_in),
+                url=post["url"],
+                method="POST",
+                headers={},
+                fields=dict(post["fields"]),
+                expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
             )
         raise FilesError(
             code="invalid_input",

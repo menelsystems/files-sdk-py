@@ -5,4 +5,4 @@ The wildcard import is intentional: it pulls every ``test_*`` function from
 binds them to the local ``adapter`` fixture defined in conftest.py.
 """
 
-from files_sdk.testing.conformance import *  # noqa: F401,F403
+from files_sdk.testing.conformance import *  # noqa: F403

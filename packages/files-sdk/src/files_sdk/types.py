@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Literal, Union
+from typing import BinaryIO, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-UploadBody = Union[bytes, str, BinaryIO, Path]
+UploadBody = bytes | str | BinaryIO | Path
 
 
 class FileMetadata(BaseModel):

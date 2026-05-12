@@ -22,7 +22,6 @@ def load_adapter_class(name: str) -> type[Any]:
     raise FilesError(
         code="invalid_input",
         message=(
-            f"no adapter named {name!r}; install files-sdk-{name} "
-            f"or pass adapter= explicitly"
+            f"no adapter named {name!r}; install files-sdk-{name} or pass adapter= explicitly"
         ),
     )

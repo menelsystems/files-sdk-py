@@ -1,5 +1,5 @@
 import pytest
-from files_sdk.errors import FilesError, ErrorCode
+from files_sdk.errors import FilesError
 
 
 def test_files_error_holds_code_and_message():
@@ -34,4 +34,5 @@ def test_error_code_literal_values():
     expected = {"not_found", "unauthorized", "conflict", "provider", "invalid_input"}
     # ErrorCode is a Literal alias; validate the set defined as VALID_CODES
     from files_sdk.errors import VALID_CODES
-    assert VALID_CODES == expected
+
+    assert expected == VALID_CODES

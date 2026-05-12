@@ -7,10 +7,7 @@ from typing import Any, ClassVar
 
 from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
 
-
-_NOT_IMPLEMENTED = (
-    "files-sdk-vercel is a stub. See packages/files-sdk-vercel/CLAIM.md to claim it."
-)
+_NOT_IMPLEMENTED = "files-sdk-vercel is a stub. See packages/files-sdk-vercel/CLAIM.md to claim it."
 
 
 class VercelAdapter:
@@ -34,8 +31,9 @@ class VercelAdapter:
     def delete(self, key: str) -> None:
         raise NotImplementedError(_NOT_IMPLEMENTED)
 
-    def list(self, *, prefix: str | None = None, cursor: str | None = None,
-             limit: int = 1000) -> ListPage:
+    def list(
+        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
+    ) -> ListPage:
         raise NotImplementedError(_NOT_IMPLEMENTED)
 
     def copy(self, src: str, dst: str) -> FileMetadata:

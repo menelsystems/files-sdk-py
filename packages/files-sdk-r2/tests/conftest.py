@@ -35,18 +35,23 @@ def aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def r2_bucket(moto_endpoint: str, aws_credentials: None) -> str:
     import uuid
+
     bucket = f"r2-{uuid.uuid4().hex[:12]}"
-    boto3.client("s3", endpoint_url=moto_endpoint, region_name="us-east-1").create_bucket(Bucket=bucket)
+    boto3.client("s3", endpoint_url=moto_endpoint, region_name="us-east-1").create_bucket(
+        Bucket=bucket
+    )
     return bucket
 
 
 @pytest.fixture
 def adapter(moto_endpoint: str, r2_bucket: str):
     from files_sdk_s3 import S3Adapter
+
     return S3Adapter(bucket=r2_bucket, endpoint_url=moto_endpoint, region="us-east-1")
 
 
 @pytest.fixture
 def async_adapter(moto_endpoint: str, r2_bucket: str):
     from files_sdk_s3 import AsyncS3Adapter
+
     return AsyncS3Adapter(bucket=r2_bucket, endpoint_url=moto_endpoint, region="us-east-1")

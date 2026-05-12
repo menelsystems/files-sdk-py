@@ -18,19 +18,19 @@ import pytest
 from files_sdk.errors import FilesError
 
 __all__ = [
-    "test_upload_then_download_bytes",
-    "test_upload_then_download_str",
-    "test_upload_from_file_like",
-    "test_head_returns_metadata",
+    "test_copy_creates_destination",
     "test_delete_is_idempotent",
     "test_download_missing_raises_not_found",
-    "test_list_prefix_filters",
+    "test_head_returns_metadata",
     "test_list_pagination_cursor",
-    "test_copy_creates_destination",
-    "test_url_returns_http_string",
+    "test_list_prefix_filters",
     "test_signed_upload_url_put",
     "test_stream_yields_chunks",
     "test_unicode_key_roundtrip",
+    "test_upload_from_file_like",
+    "test_upload_then_download_bytes",
+    "test_upload_then_download_str",
+    "test_url_returns_http_string",
     "test_zero_byte_upload",
 ]
 
@@ -155,10 +155,8 @@ def test_zero_byte_upload(adapter) -> None:
 
 # --- async variants (require ``async_adapter`` fixture) ---------------------
 
-import pytest as _pytest
 
-
-@_pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_async_upload_then_download_bytes(async_adapter) -> None:
     k = _k("a")
     await async_adapter.upload(k, b"hello")
@@ -166,7 +164,7 @@ async def test_async_upload_then_download_bytes(async_adapter) -> None:
     assert sf.data == b"hello"
 
 
-@_pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_async_delete_idempotent(async_adapter) -> None:
     k = _k("a")
     await async_adapter.delete(k)
@@ -175,14 +173,14 @@ async def test_async_delete_idempotent(async_adapter) -> None:
     await async_adapter.delete(k)
 
 
-@_pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_async_download_missing_raises_not_found(async_adapter) -> None:
-    with _pytest.raises(FilesError) as ei:
+    with pytest.raises(FilesError) as ei:
         await async_adapter.download(_k("nope-a"))
     assert ei.value.code == "not_found"
 
 
-@_pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_async_stream_yields_chunks(async_adapter) -> None:
     k = _k("a")
     payload = b"abc" * 1000
@@ -194,8 +192,8 @@ async def test_async_stream_yields_chunks(async_adapter) -> None:
 
 
 __all__ += [
-    "test_async_upload_then_download_bytes",
     "test_async_delete_idempotent",
     "test_async_download_missing_raises_not_found",
     "test_async_stream_yields_chunks",
+    "test_async_upload_then_download_bytes",
 ]

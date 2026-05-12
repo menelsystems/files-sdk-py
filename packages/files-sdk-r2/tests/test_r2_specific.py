@@ -1,5 +1,4 @@
 import pytest
-
 from files_sdk.errors import FilesError
 from files_sdk_r2 import AsyncR2Adapter, R2Adapter
 

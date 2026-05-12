@@ -1,7 +1,6 @@
 """Smoke test confirming the stub raises NotImplementedError."""
 
 import pytest
-
 from files_sdk_storj import StorjAdapter
 
 

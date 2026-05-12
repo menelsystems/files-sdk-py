@@ -6,8 +6,8 @@ Idempotent: skips packages that already exist.
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ROOT / "packages"
@@ -30,7 +30,7 @@ PROVIDERS: list[tuple[str, str]] = [
     ("vercel", "Vercel"),
 ]
 
-PYPROJECT_TMPL = '''\
+PYPROJECT_TMPL = """\
 [project]
 name = "files-sdk-{suffix}"
 version = "0.0.0"
@@ -62,9 +62,9 @@ packages = ["src/files_sdk_{suffix}"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-'''
+"""
 
-CLAIM_TMPL = '''\
+CLAIM_TMPL = """\
 # Claim: {cls}
 
 - **Claimed by:** (unclaimed)
@@ -73,15 +73,15 @@ CLAIM_TMPL = '''\
 
 To claim this adapter, edit this file with your name and open a PR. See
 [`packages/_template/README.md`](../_template/README.md) for guidance.
-'''
+"""
 
-README_TMPL = '''\
+README_TMPL = """\
 # files-sdk-{suffix}
 
 Stub adapter for **{cls}** in [files-sdk](../files-sdk). Not yet implemented.
 
 See [CLAIM.md](./CLAIM.md) to claim and implement.
-'''
+"""
 
 INIT_TMPL = '''\
 """files-sdk-{suffix} — stub adapter."""

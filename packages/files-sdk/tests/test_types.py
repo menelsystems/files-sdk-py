@@ -1,9 +1,8 @@
 from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile
+from pydantic import ValidationError
 
 
 def _meta() -> FileMetadata:
@@ -27,8 +26,12 @@ def test_file_metadata_required_fields():
 def test_file_metadata_size_nonnegative():
     with pytest.raises(ValidationError):
         FileMetadata(
-            key="x", size=-1, etag=None, content_type=None,
-            last_modified=datetime(2026, 1, 1, tzinfo=UTC), metadata={},
+            key="x",
+            size=-1,
+            etag=None,
+            content_type=None,
+            last_modified=datetime(2026, 1, 1, tzinfo=UTC),
+            metadata={},
         )
 
 
@@ -39,7 +42,7 @@ def test_stored_file_text_decoding():
 
 
 def test_stored_file_text_custom_encoding():
-    sf = StoredFile(metadata=_meta().model_copy(update={"size": 6}), data="héllo".encode("utf-8"))
+    sf = StoredFile(metadata=_meta().model_copy(update={"size": 6}), data="héllo".encode())
     assert sf.text(encoding="utf-8") == "héllo"
 
 

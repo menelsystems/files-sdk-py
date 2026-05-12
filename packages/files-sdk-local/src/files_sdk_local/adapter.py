@@ -43,8 +43,9 @@ class LocalAdapter:
     def delete(self, key: str) -> None:
         self._storage.delete(key)
 
-    def list(self, *, prefix: str | None = None, cursor: str | None = None,
-             limit: int = 1000) -> ListPage:
+    def list(
+        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
+    ) -> ListPage:
         return self._storage.list(prefix=prefix, cursor=cursor, limit=limit)
 
     def copy(self, src: str, dst: str) -> FileMetadata:

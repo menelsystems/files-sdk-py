@@ -5,13 +5,12 @@ from __future__ import annotations
 import io
 import os
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, ClassVar
 
 import aioboto3
 from botocore.exceptions import ClientError
-
 from files_sdk.errors import FilesError
 from files_sdk.types import (
     FileMetadata,
@@ -54,7 +53,9 @@ class AsyncS3Adapter:
             aws_access_key_id=access_key_id or os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=secret_access_key or os.environ.get("AWS_SECRET_ACCESS_KEY"),
             aws_session_token=session_token or os.environ.get("AWS_SESSION_TOKEN"),
-            region_name=region or os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"),
+            region_name=region
+            or os.environ.get("AWS_REGION")
+            or os.environ.get("AWS_DEFAULT_REGION"),
         )
 
     def _client(self):  # type: ignore[no-untyped-def]
@@ -87,7 +88,7 @@ class AsyncS3Adapter:
             size=int(resp.get("ContentLength", 0)),
             etag=(resp.get("ETag") or "").strip('"') or None,
             content_type=resp.get("ContentType"),
-            last_modified=resp.get("LastModified") or datetime.now(timezone.utc),
+            last_modified=resp.get("LastModified") or datetime.now(UTC),
             metadata=dict(resp.get("Metadata") or {}),
         )
 
@@ -129,6 +130,7 @@ class AsyncS3Adapter:
                         yield chunk
                 except ClientError as e:
                     raise self._normalize_error("stream", e) from e
+
         return gen()
 
     async def head(self, key: str) -> FileMetadata:
@@ -169,7 +171,7 @@ class AsyncS3Adapter:
                 size=int(obj.get("Size", 0)),
                 etag=(obj.get("ETag") or "").strip('"') or None,
                 content_type=None,
-                last_modified=obj.get("LastModified") or datetime.now(timezone.utc),
+                last_modified=obj.get("LastModified") or datetime.now(UTC),
                 metadata={},
             )
             for obj in resp.get("Contents", [])
@@ -181,7 +183,8 @@ class AsyncS3Adapter:
         async with self._client() as c:
             try:
                 await c.copy_object(
-                    Bucket=self.bucket, Key=dst,
+                    Bucket=self.bucket,
+                    Key=dst,
                     CopySource={"Bucket": self.bucket, "Key": src},
                 )
             except ClientError as e:
@@ -209,12 +212,17 @@ class AsyncS3Adapter:
                 if content_type:
                     params["ContentType"] = content_type
                 url = await c.generate_presigned_url(
-                    "put_object", Params=params, ExpiresIn=expires_in,
+                    "put_object",
+                    Params=params,
+                    ExpiresIn=expires_in,
                 )
                 headers = {"Content-Type": content_type} if content_type else {}
                 return SignedUpload(
-                    url=url, method="PUT", headers=headers, fields=None,
-                    expires_at=datetime.now(timezone.utc) + timedelta(seconds=expires_in),
+                    url=url,
+                    method="PUT",
+                    headers=headers,
+                    fields=None,
+                    expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
                 )
             if method == "post":
                 conditions: list[Any] = []
@@ -223,12 +231,17 @@ class AsyncS3Adapter:
                 if content_type:
                     conditions.append({"Content-Type": content_type})
                 post = await c.generate_presigned_post(
-                    Bucket=self.bucket, Key=key, Conditions=conditions or None,
+                    Bucket=self.bucket,
+                    Key=key,
+                    Conditions=conditions or None,
                     ExpiresIn=expires_in,
                 )
                 return SignedUpload(
-                    url=post["url"], method="POST", headers={}, fields=dict(post["fields"]),
-                    expires_at=datetime.now(timezone.utc) + timedelta(seconds=expires_in),
+                    url=post["url"],
+                    method="POST",
+                    headers={},
+                    fields=dict(post["fields"]),
+                    expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
                 )
         raise FilesError(
             code="invalid_input",
