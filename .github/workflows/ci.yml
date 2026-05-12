@@ -41,11 +41,14 @@ jobs:
         env:
           RUSTFS_ACCESS_KEY: test
           RUSTFS_SECRET_KEY: test
+        # rustfs returns 403 AccessDenied on bare GET / (correct S3 behavior),
+        # so `curl -sf` would fail. We just need TCP/HTTP to respond at all —
+        # drop -f so any HTTP response counts as healthy.
         options: >-
-          --health-cmd "curl -sf http://localhost:9000/ || exit 1"
+          --health-cmd "curl -s -o /dev/null http://localhost:9000/ || exit 1"
           --health-interval 5s
           --health-timeout 3s
-          --health-retries 12
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -57,8 +60,10 @@ jobs:
         run: uv sync --all-packages
       - name: Wait for rustfs
         run: |
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -sf http://localhost:9000/; then echo "ready"; exit 0; fi
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/ | grep -qE "^(200|403|404)$"; then
+              echo "rustfs ready"; exit 0
+            fi
             sleep 2
           done
           echo "rustfs not ready"; exit 1
