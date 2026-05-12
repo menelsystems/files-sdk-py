@@ -18,6 +18,7 @@ addopts = "--import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
     "integration: end-to-end tests requiring a live S3-compatible server (FILES_SDK_INTEGRATION_ENDPOINT)",
+    "r2_integration: real Cloudflare R2 tests requiring FILES_SDK_R2_INTEGRATION=1 + R2 env creds",
 ]
 
 [dependency-groups]

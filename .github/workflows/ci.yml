@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -61,10 +62,35 @@ jobs:
             sleep 2
           done
           echo "rustfs not ready"; exit 1
-      - name: Integration tests
+      - name: Integration tests (rustfs)
         env:
           FILES_SDK_INTEGRATION_ENDPOINT: http://localhost:9000
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
           AWS_REGION: us-east-1
-        run: uv run pytest tests/integration -v -m integration
+        run: uv run pytest tests/integration -v -m "integration and not r2_integration"
+
+  r2-integration:
+    # Real Cloudflare R2 round-trip. Manual trigger only (workflow_dispatch) to
+    # avoid burning class-A ops on every PR. Triggered via:
+    #   gh workflow run ci.yml -f run-r2=true        (real GitHub)
+    #   act -j r2-integration --secret-file .secrets (local)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set Python 3.13
+        run: uv python install 3.13
+      - name: Install
+        run: uv sync --all-packages
+      - name: R2 integration tests
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          FILES_SDK_R2_INTEGRATION: "1"
+        run: uv run pytest tests/integration/test_r2_real.py -v -m r2_integration
