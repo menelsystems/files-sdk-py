@@ -186,7 +186,7 @@ async def test_async_stream_yields_chunks(async_adapter) -> None:
     payload = b"abc" * 1000
     await async_adapter.upload(k, payload)
     got = b""
-    async for chunk in await async_adapter.stream(k, chunk_size=128):
+    async for chunk in async_adapter.stream(k, chunk_size=128):
         got += chunk
     assert got == payload
 
