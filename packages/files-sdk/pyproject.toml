@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
+keywords = ["storage", "files", "object-storage", "sdk", "s3", "blob"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -18,6 +19,11 @@ classifiers = [
 dependencies = [
     "pydantic>=2.8",
 ]
+
+[project.urls]
+Homepage = "https://github.com/menelsystems/files-sdk-py"
+Repository = "https://github.com/menelsystems/files-sdk-py"
+Issues = "https://github.com/menelsystems/files-sdk-py/issues"
 
 [build-system]
 requires = ["hatchling"]
