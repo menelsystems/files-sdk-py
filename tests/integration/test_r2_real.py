@@ -46,7 +46,7 @@ def async_adapter():
 # Wildcard import pulls the entire conformance suite into this module so pytest
 # binds the `adapter` / `async_adapter` fixtures defined above. Skip marker on
 # pytestmark cascades to every imported test function.
-from files_sdk.testing.conformance import *  # noqa: E402,F401,F403
+from files_sdk.testing.conformance import *  # noqa: E402,F403
 
 
 def test_files_from_name_r2_roundtrip() -> None:

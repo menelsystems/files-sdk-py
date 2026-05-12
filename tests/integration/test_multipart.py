@@ -17,6 +17,7 @@ def test_multipart_upload_above_threshold(
 ) -> None:
     """Upload 12 MiB with a 5 MiB multipart threshold — forces multipart path."""
     from files_sdk_s3 import S3Adapter
+
     a = S3Adapter(
         bucket=integration_bucket,
         endpoint_url=integration_endpoint,
@@ -41,6 +42,7 @@ def test_small_upload_below_threshold_uses_put(
 ) -> None:
     """Below threshold uploads go through put_object — sanity check that the bytes path also works."""
     from files_sdk_s3 import S3Adapter
+
     a = S3Adapter(
         bucket=integration_bucket,
         endpoint_url=integration_endpoint,

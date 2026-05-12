@@ -50,6 +50,7 @@ def adapter(
     integration_credentials: dict[str, str],
 ):
     from files_sdk_s3 import S3Adapter
+
     return S3Adapter(
         bucket=integration_bucket,
         endpoint_url=integration_endpoint,
@@ -66,6 +67,7 @@ def async_adapter(
     integration_credentials: dict[str, str],
 ):
     from files_sdk_s3 import AsyncS3Adapter
+
     return AsyncS3Adapter(
         bucket=integration_bucket,
         endpoint_url=integration_endpoint,
