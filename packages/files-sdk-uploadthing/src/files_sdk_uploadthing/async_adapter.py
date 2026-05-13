@@ -1,23 +1,4 @@
-"""Synchronous UploadThing adapter.
-
-UploadThing's API has three meaningful mismatches with the `Adapter` protocol;
-this module papers over them:
-
-  * **No user-chosen storage path** — files have an opaque `fileKey` chosen by
-    the server side. UploadThing supports a parallel `customId` field that
-    every read/delete API can be keyed by (`keyType: "customId"`). We map the
-    adapter's `key: str` → UT's `customId`, so callers see normal path-like
-    keys (`"users/123/avatar.png"`) end-to-end. The internal `fileKey` is
-    generated locally and never surfaced.
-  * **No prefix filter on listFiles** — we fetch a page from the API and
-    filter by prefix in Python. The cursor is a stringified offset.
-  * **No server-side copy** — we download then reupload. Costs bandwidth and a
-    second presigned URL; documented but unavoidable.
-
-Auth: `UPLOADTHING_TOKEN` is base64 JSON `{apiKey, appId, regions}`; only the
-decoded `apiKey` is sent (as the `x-uploadthing-api-key` header). The token
-itself never leaves the client.
-"""
+"""Asynchronous UploadThing adapter — mirrors `UploadThingAdapter`."""
 
 from __future__ import annotations
 
@@ -25,9 +6,8 @@ import mimetypes
 import os
 import posixpath
 import urllib.parse
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -43,9 +23,16 @@ from files_sdk.types import (
 
 from ._signing import generate_file_key, generate_signed_url
 from ._token import UploadThingToken, decode_token
-
-_API_BASE = "https://api.uploadthing.com"
-_DEFAULT_TTL = 3600
+from .adapter import (
+    _API_BASE,
+    _DEFAULT_TTL,
+    _body_to_bytes,
+    _clean_etag,
+    _guess_content_type,
+    _normalize_http_error,
+    _parse_last_modified,
+    _size_from_range_headers,
+)
 
 
 def _resolve_token(token: str | None) -> UploadThingToken:
@@ -53,93 +40,20 @@ def _resolve_token(token: str | None) -> UploadThingToken:
     if not raw:
         raise FilesError(
             code="unauthorized",
-            message="UploadThingAdapter requires token= or UPLOADTHING_TOKEN env var",
+            message="AsyncUploadThingAdapter requires token= or UPLOADTHING_TOKEN env var",
             provider="uploadthing",
         )
     return decode_token(raw)
 
 
-def _normalize_http_error(op: str, status: int, body: bytes) -> FilesError:
-    text = body.decode("utf-8", errors="replace")[:500]
-    if status == 404:
-        return FilesError(code="not_found", message=f"{op}: {text}", provider="uploadthing")
-    if status in (401, 403):
-        return FilesError(code="unauthorized", message=f"{op}: {text}", provider="uploadthing")
-    if status in (409, 412):
-        return FilesError(code="conflict", message=f"{op}: {text}", provider="uploadthing")
-    if status == 400:
-        return FilesError(code="invalid_input", message=f"{op}: {text}", provider="uploadthing")
-    return FilesError(
-        code="provider",
-        message=f"{op}: HTTP {status} {text}",
-        provider="uploadthing",
-    )
+async def _read_async_body(body: UploadBody) -> bytes:
+    if isinstance(body, (bytes, bytearray, str, Path)):
+        return _body_to_bytes(body)
+    return body.read()  # file-like — sync read; users wanting true-async should hand bytes
 
 
-def _body_to_bytes(body: UploadBody) -> bytes:
-    if isinstance(body, (bytes, bytearray)):
-        return bytes(body)
-    if isinstance(body, str):
-        return body.encode("utf-8")
-    if isinstance(body, Path):
-        return body.read_bytes()
-    return body.read()  # file-like
-
-
-def _guess_content_type(key: str, override: str | None) -> str:
-    if override:
-        return override
-    guessed, _ = mimetypes.guess_type(key)
-    return guessed or "application/octet-stream"
-
-
-def _parse_last_modified(value: str | None) -> datetime:
-    if not value:
-        return datetime.now(UTC)
-    try:
-        return parsedate_to_datetime(value)
-    except (TypeError, ValueError):
-        return datetime.now(UTC)
-
-
-def _clean_etag(value: str | None) -> str | None:
-    """Normalize CDN etags: strip `W/` weak-validator prefix and surrounding quotes."""
-    if not value:
-        return None
-    v = value
-    if v.startswith("W/"):
-        v = v[2:]
-    return v.strip('"') or None
-
-
-def _size_from_range_headers(headers: Any) -> int:
-    """Cloudflare HEAD often returns content-length:0 for cold cache; ranged GET
-    returns `Content-Range: bytes 0-0/N` which is reliable. Fall back to
-    content-length if the server ignored Range."""
-    cr = headers.get("content-range")
-    if cr:
-        try:
-            return int(cr.rsplit("/", 1)[-1])
-        except ValueError:
-            pass
-    cl = headers.get("content-length")
-    if cl:
-        try:
-            return int(cl)
-        except ValueError:
-            pass
-    return 0
-
-
-class UploadThingAdapter:
-    """Synchronous UploadThing storage adapter.
-
-    Keys are mapped to UploadThing's `customId` field, so the same path used
-    here can be used to read/delete the file later. The opaque per-file
-    `fileKey` is generated locally and never surfaced through this interface.
-    """
-
-    name: ClassVar[str] = "uploadthing"
+class AsyncUploadThingAdapter:
+    name: ClassVar[str] = "uploadthing-async"
 
     def __init__(
         self,
@@ -152,7 +66,8 @@ class UploadThingAdapter:
         self._region = region or self._token.primary_region
         self._ingest_url = f"https://{self._region}.ingest.uploadthing.com"
         self._cdn_base = f"https://{self._token.app_id}.ufs.sh/f"
-        self._client = httpx.Client(
+        self._timeout = timeout
+        self._client = httpx.AsyncClient(
             base_url=_API_BASE,
             headers={
                 "x-uploadthing-api-key": self._token.api_key,
@@ -162,11 +77,14 @@ class UploadThingAdapter:
             timeout=timeout,
         )
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
     # ---- helpers -----------------------------------------------------------
 
-    def _post(self, op: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _post(self, op: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         try:
-            resp = self._client.post(path, json=payload)
+            resp = await self._client.post(path, json=payload)
         except httpx.HTTPError as e:
             raise FilesError(code="provider", message=f"{op}: {e}", provider=self.name) from e
         if resp.status_code >= 400:
@@ -180,8 +98,6 @@ class UploadThingAdapter:
         return data if isinstance(data, dict) else {"data": data}
 
     def _cdn_url(self, key: str) -> str:
-        # Preserve `/` separators in the customId path; encode everything else
-        # (unicode, spaces, reserved chars) so the request URL is well-formed.
         path = urllib.parse.quote(key.lstrip("/"), safe="/")
         return f"{self._cdn_base}/{path}"
 
@@ -194,7 +110,6 @@ class UploadThingAdapter:
         content_type: str,
         ttl_seconds: int = _DEFAULT_TTL,
     ) -> tuple[str, str]:
-        """Return `(signed_url, file_key)`."""
         file_key = generate_file_key(
             self._token.app_id,
             file_name=file_name,
@@ -219,8 +134,8 @@ class UploadThingAdapter:
 
     # ---- public API --------------------------------------------------------
 
-    def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
-        data = _body_to_bytes(body)
+    async def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
+        data = await _read_async_body(body)
         content_type = _guess_content_type(key, opts.get("content_type"))
         file_name = posixpath.basename(key) or "file"
         signed_url, _ = self._presigned_upload_url(
@@ -229,14 +144,16 @@ class UploadThingAdapter:
             file_size=len(data),
             content_type=content_type,
         )
-        try:
-            resp = httpx.put(
-                signed_url,
-                files={"file": (file_name, data, content_type)},
-                timeout=self._client.timeout,
-            )
-        except httpx.HTTPError as e:
-            raise FilesError(code="provider", message=f"upload: {e}", provider=self.name) from e
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            try:
+                resp = await client.put(
+                    signed_url,
+                    files={"file": (file_name, data, content_type)},
+                )
+            except httpx.HTTPError as e:
+                raise FilesError(
+                    code="provider", message=f"upload: {e}", provider=self.name
+                ) from e
         if resp.status_code >= 400:
             raise _normalize_http_error("upload", resp.status_code, resp.content)
         return FileMetadata(
@@ -248,12 +165,15 @@ class UploadThingAdapter:
             metadata={},
         )
 
-    def download(self, key: str) -> StoredFile:
+    async def download(self, key: str) -> StoredFile:
         url = self._cdn_url(key)
-        try:
-            resp = httpx.get(url, timeout=self._client.timeout, follow_redirects=True)
-        except httpx.HTTPError as e:
-            raise FilesError(code="provider", message=f"download: {e}", provider=self.name) from e
+        async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
+            try:
+                resp = await client.get(url)
+            except httpx.HTTPError as e:
+                raise FilesError(
+                    code="provider", message=f"download: {e}", provider=self.name
+                ) from e
         if resp.status_code == 404:
             raise FilesError(code="not_found", message=f"download: {key}", provider=self.name)
         if resp.status_code >= 400:
@@ -270,38 +190,43 @@ class UploadThingAdapter:
             data=resp.content,
         )
 
-    def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
+    def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
         url = self._cdn_url(key)
-        try:
-            with httpx.stream(
-                "GET", url, timeout=self._client.timeout, follow_redirects=True
-            ) as resp:
-                if resp.status_code == 404:
-                    raise FilesError(
-                        code="not_found", message=f"stream: {key}", provider=self.name
-                    )
-                if resp.status_code >= 400:
-                    resp.read()
-                    raise _normalize_http_error("stream", resp.status_code, resp.content)
-                yield from resp.iter_bytes(chunk_size=chunk_size)
-        except httpx.HTTPError as e:
-            raise FilesError(code="provider", message=f"stream: {e}", provider=self.name) from e
+        timeout = self._timeout
 
-    def head(self, key: str) -> FileMetadata:
+        async def gen() -> AsyncIterator[bytes]:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                try:
+                    async with client.stream("GET", url) as resp:
+                        if resp.status_code == 404:
+                            raise FilesError(
+                                code="not_found",
+                                message=f"stream: {key}",
+                                provider=self.name,
+                            )
+                        if resp.status_code >= 400:
+                            await resp.aread()
+                            raise _normalize_http_error(
+                                "stream", resp.status_code, resp.content
+                            )
+                        async for chunk in resp.aiter_bytes(chunk_size=chunk_size):
+                            yield chunk
+                except httpx.HTTPError as e:
+                    raise FilesError(
+                        code="provider", message=f"stream: {e}", provider=self.name
+                    ) from e
+
+        return gen()
+
+    async def head(self, key: str) -> FileMetadata:
         url = self._cdn_url(key)
-        # Cloudflare's CDN returns `content-length: 0` on cold HEAD for some
-        # paths; a one-byte ranged GET reliably surfaces the full size via
-        # `Content-Range: bytes 0-0/N`. Trades 1 byte of network per call for
-        # correct metadata.
-        try:
-            resp = httpx.get(
-                url,
-                headers={"Range": "bytes=0-0"},
-                timeout=self._client.timeout,
-                follow_redirects=True,
-            )
-        except httpx.HTTPError as e:
-            raise FilesError(code="provider", message=f"head: {e}", provider=self.name) from e
+        async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
+            try:
+                resp = await client.get(url, headers={"Range": "bytes=0-0"})
+            except httpx.HTTPError as e:
+                raise FilesError(
+                    code="provider", message=f"head: {e}", provider=self.name
+                ) from e
         if resp.status_code == 404:
             raise FilesError(code="not_found", message=f"head: {key}", provider=self.name)
         if resp.status_code >= 400:
@@ -315,35 +240,27 @@ class UploadThingAdapter:
             metadata={},
         )
 
-    def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> None:
         try:
-            self._post(
+            await self._post(
                 "delete",
                 "/v6/deleteFiles",
                 {"customIds": [key], "keyType": "customId"},
             )
         except FilesError as e:
-            # UploadThing's `deleteFiles` is documented to succeed with
-            # `deletedCount: 0` on missing keys, but empirically this hasn't
-            # been verified — swallow `not_found` to keep the contract.
             if e.code == "not_found":
                 return
             raise
 
-    def list(
+    async def list(
         self,
         *,
         prefix: str | None = None,
         cursor: str | None = None,
         limit: int = 1000,
     ) -> ListPage:
-        # UploadThing's listFiles is offset-based with no prefix filter.
-        # We fetch one page, filter client-side, and stringify the next offset
-        # as the cursor. For accounts with many files outside the prefix this
-        # is wasteful — document the trade-off; users with very large blobs
-        # should reach for a real object store.
         offset = int(cursor) if cursor else 0
-        resp = self._post(
+        resp = await self._post(
             "list",
             "/v6/listFiles",
             {"limit": limit, "offset": offset},
@@ -374,15 +291,14 @@ class UploadThingAdapter:
         next_offset = offset + len(raw_files) if has_more else None
         return ListPage(items=items, cursor=str(next_offset) if next_offset is not None else None)
 
-    def copy(self, src: str, dst: str) -> FileMetadata:
-        # UploadThing has no server-side copy. Round-trip through the client.
-        stored = self.download(src)
-        return self.upload(dst, stored.data, content_type=stored.metadata.content_type)
+    async def copy(self, src: str, dst: str) -> FileMetadata:
+        stored = await self.download(src)
+        return await self.upload(dst, stored.data, content_type=stored.metadata.content_type)
 
-    def url(self, key: str, *, expires_in: int = _DEFAULT_TTL, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = _DEFAULT_TTL, public: bool = False) -> str:
         if public:
             return self._cdn_url(key)
-        resp = self._post(
+        resp = await self._post(
             "url",
             "/v6/requestFileAccess",
             {"customId": key, "expiresIn": expires_in},
@@ -396,7 +312,7 @@ class UploadThingAdapter:
             )
         return signed
 
-    def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
+    async def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
         method = str(opts.get("method", "put")).lower()
         if method != "put":
             raise FilesError(
@@ -418,10 +334,6 @@ class UploadThingAdapter:
             content_type=content_type,
             ttl_seconds=expires_in,
         )
-        # Note: uploads to this URL must use multipart/form-data with the file
-        # in the `file` field — not a raw PUT body. We surface method="PUT"
-        # to match the adapter protocol; the Content-Type header is the
-        # multipart boundary, set by the HTTP client at request time.
         return SignedUpload(
             url=signed_url,
             method="PUT",
@@ -433,11 +345,3 @@ class UploadThingAdapter:
     @property
     def raw(self) -> Any:
         return self._client
-
-    def __del__(self) -> None:
-        client = getattr(self, "_client", None)
-        if client is not None:
-            try:
-                client.close()
-            except Exception:  # pragma: no cover - best-effort
-                pass

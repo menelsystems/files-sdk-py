@@ -12,6 +12,7 @@ exclude = ["packages/_template"]
 files-sdk = { workspace = true }
 files-sdk-s3 = { workspace = true }
 files-sdk-r2 = { workspace = true }
+files-sdk-uploadthing = { workspace = true }
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
