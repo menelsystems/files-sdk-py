@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import mimetypes
-import os
 import posixpath
 import urllib.parse
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import httpx
 from files_sdk.errors import FilesError
@@ -21,34 +19,24 @@ from files_sdk.types import (
     UploadBody,
 )
 
-from ._signing import generate_file_key, generate_signed_url
-from ._token import UploadThingToken, decode_token
-from .adapter import (
-    _API_BASE,
-    _DEFAULT_TTL,
-    _body_to_bytes,
-    _clean_etag,
-    _guess_content_type,
-    _normalize_http_error,
-    _parse_last_modified,
-    _size_from_range_headers,
+from ._helpers import (
+    API_BASE,
+    DEFAULT_TTL,
+    body_to_bytes,
+    clean_etag,
+    extract_url_from_get_file_url_response,
+    guess_content_type,
+    normalize_http_error,
+    parse_last_modified,
+    resolve_token,
+    size_from_range_headers,
 )
-
-
-def _resolve_token(token: str | None) -> UploadThingToken:
-    raw = token or os.environ.get("UPLOADTHING_TOKEN")
-    if not raw:
-        raise FilesError(
-            code="unauthorized",
-            message="AsyncUploadThingAdapter requires token= or UPLOADTHING_TOKEN env var",
-            provider="uploadthing",
-        )
-    return decode_token(raw)
+from ._signing import generate_file_key, generate_signed_url
 
 
 async def _read_async_body(body: UploadBody) -> bytes:
     if isinstance(body, (bytes, bytearray, str, Path)):
-        return _body_to_bytes(body)
+        return body_to_bytes(body)
     return body.read()  # file-like — sync read; users wanting true-async should hand bytes
 
 
@@ -62,13 +50,13 @@ class AsyncUploadThingAdapter:
         region: str | None = None,
         timeout: float = 30.0,
     ) -> None:
-        self._token = _resolve_token(token)
+        self._token = resolve_token(token, adapter_name="AsyncUploadThingAdapter")
         self._region = region or self._token.primary_region
         self._ingest_url = f"https://{self._region}.ingest.uploadthing.com"
         self._cdn_base = f"https://{self._token.app_id}.ufs.sh/f"
         self._timeout = timeout
         self._client = httpx.AsyncClient(
-            base_url=_API_BASE,
+            base_url=API_BASE,
             headers={
                 "x-uploadthing-api-key": self._token.api_key,
                 "x-uploadthing-be-adapter": "files-sdk-python",
@@ -88,18 +76,33 @@ class AsyncUploadThingAdapter:
         except httpx.HTTPError as e:
             raise FilesError(code="provider", message=f"{op}: {e}", provider=self.name) from e
         if resp.status_code >= 400:
-            raise _normalize_http_error(op, resp.status_code, resp.content)
+            raise normalize_http_error(op, resp.status_code, resp.content)
         if not resp.content:
             return {}
         try:
-            data = resp.json()
+            data: object = resp.json()
         except ValueError:
             return {}
-        return data if isinstance(data, dict) else {"data": data}
+        if isinstance(data, dict):
+            return cast("dict[str, Any]", data)
+        return {"data": data}
 
     def _cdn_url(self, key: str) -> str:
         path = urllib.parse.quote(key.lstrip("/"), safe="/")
         return f"{self._cdn_base}/{path}"
+
+    async def _resolve_cdn_url_via_api(self, key: str) -> str:
+        resp = await self._post(
+            "getFileUrl",
+            "/v6/getFileUrl",
+            {"customIds": [key], "keyType": "customId"},
+        )
+        url = extract_url_from_get_file_url_response(resp)
+        if url is None:
+            raise FilesError(
+                code="not_found", message=f"getFileUrl: {key}", provider=self.name
+            )
+        return url
 
     def _presigned_upload_url(
         self,
@@ -108,7 +111,7 @@ class AsyncUploadThingAdapter:
         file_name: str,
         file_size: int,
         content_type: str,
-        ttl_seconds: int = _DEFAULT_TTL,
+        ttl_seconds: int = DEFAULT_TTL,
     ) -> tuple[str, str]:
         file_key = generate_file_key(
             self._token.app_id,
@@ -136,7 +139,7 @@ class AsyncUploadThingAdapter:
 
     async def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
         data = await _read_async_body(body)
-        content_type = _guess_content_type(key, opts.get("content_type"))
+        content_type = guess_content_type(key, opts.get("content_type"))
         file_name = posixpath.basename(key) or "file"
         signed_url, _ = self._presigned_upload_url(
             custom_id=key,
@@ -155,7 +158,7 @@ class AsyncUploadThingAdapter:
                     code="provider", message=f"upload: {e}", provider=self.name
                 ) from e
         if resp.status_code >= 400:
-            raise _normalize_http_error("upload", resp.status_code, resp.content)
+            raise normalize_http_error("upload", resp.status_code, resp.content)
         return FileMetadata(
             key=key,
             size=len(data),
@@ -170,6 +173,9 @@ class AsyncUploadThingAdapter:
         async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
             try:
                 resp = await client.get(url)
+                if resp.status_code == 404:
+                    url = await self._resolve_cdn_url_via_api(key)
+                    resp = await client.get(url)
             except httpx.HTTPError as e:
                 raise FilesError(
                     code="provider", message=f"download: {e}", provider=self.name
@@ -177,43 +183,48 @@ class AsyncUploadThingAdapter:
         if resp.status_code == 404:
             raise FilesError(code="not_found", message=f"download: {key}", provider=self.name)
         if resp.status_code >= 400:
-            raise _normalize_http_error("download", resp.status_code, resp.content)
+            raise normalize_http_error("download", resp.status_code, resp.content)
         return StoredFile(
             metadata=FileMetadata(
                 key=key,
                 size=len(resp.content),
-                etag=_clean_etag(resp.headers.get("etag")),
+                etag=clean_etag(resp.headers.get("etag")),
                 content_type=resp.headers.get("content-type"),
-                last_modified=_parse_last_modified(resp.headers.get("last-modified")),
+                last_modified=parse_last_modified(resp.headers.get("last-modified")),
                 metadata={},
             ),
             data=resp.content,
         )
 
     def stream(self, key: str, *, chunk_size: int = 65536) -> AsyncIterator[bytes]:
-        url = self._cdn_url(key)
-        timeout = self._timeout
+        adapter = self
 
         async def gen() -> AsyncIterator[bytes]:
-            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            url = adapter._cdn_url(key)
+            async with httpx.AsyncClient(
+                timeout=adapter._timeout, follow_redirects=True
+            ) as client:
                 try:
+                    probe = await client.get(url, headers={"Range": "bytes=0-0"})
+                    if probe.status_code == 404:
+                        url = await adapter._resolve_cdn_url_via_api(key)
                     async with client.stream("GET", url) as resp:
                         if resp.status_code == 404:
                             raise FilesError(
                                 code="not_found",
                                 message=f"stream: {key}",
-                                provider=self.name,
+                                provider=adapter.name,
                             )
                         if resp.status_code >= 400:
                             await resp.aread()
-                            raise _normalize_http_error(
+                            raise normalize_http_error(
                                 "stream", resp.status_code, resp.content
                             )
                         async for chunk in resp.aiter_bytes(chunk_size=chunk_size):
                             yield chunk
                 except httpx.HTTPError as e:
                     raise FilesError(
-                        code="provider", message=f"stream: {e}", provider=self.name
+                        code="provider", message=f"stream: {e}", provider=adapter.name
                     ) from e
 
         return gen()
@@ -223,6 +234,9 @@ class AsyncUploadThingAdapter:
         async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
             try:
                 resp = await client.get(url, headers={"Range": "bytes=0-0"})
+                if resp.status_code == 404:
+                    url = await self._resolve_cdn_url_via_api(key)
+                    resp = await client.get(url, headers={"Range": "bytes=0-0"})
             except httpx.HTTPError as e:
                 raise FilesError(
                     code="provider", message=f"head: {e}", provider=self.name
@@ -230,13 +244,13 @@ class AsyncUploadThingAdapter:
         if resp.status_code == 404:
             raise FilesError(code="not_found", message=f"head: {key}", provider=self.name)
         if resp.status_code >= 400:
-            raise _normalize_http_error("head", resp.status_code, resp.content)
+            raise normalize_http_error("head", resp.status_code, resp.content)
         return FileMetadata(
             key=key,
-            size=_size_from_range_headers(resp.headers),
-            etag=_clean_etag(resp.headers.get("etag")),
+            size=size_from_range_headers(resp.headers),
+            etag=clean_etag(resp.headers.get("etag")),
             content_type=resp.headers.get("content-type"),
-            last_modified=_parse_last_modified(resp.headers.get("last-modified")),
+            last_modified=parse_last_modified(resp.headers.get("last-modified")),
             metadata={},
         )
 
@@ -295,7 +309,7 @@ class AsyncUploadThingAdapter:
         stored = await self.download(src)
         return await self.upload(dst, stored.data, content_type=stored.metadata.content_type)
 
-    async def url(self, key: str, *, expires_in: int = _DEFAULT_TTL, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = DEFAULT_TTL, public: bool = False) -> str:
         if public:
             return self._cdn_url(key)
         resp = await self._post(
@@ -323,7 +337,7 @@ class AsyncUploadThingAdapter:
                 ),
                 provider=self.name,
             )
-        expires_in = int(opts.get("expires_in", _DEFAULT_TTL))
+        expires_in = int(opts.get("expires_in", DEFAULT_TTL))
         content_type = opts.get("content_type") or "application/octet-stream"
         file_size = int(opts.get("max_size", 0))
         file_name = posixpath.basename(key) or "file"

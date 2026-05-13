@@ -7,10 +7,11 @@ Unified Python SDK for cloud object/blob storage. One API, swap the adapter to c
 ```
 packages/
   files-sdk/          # core: Protocol, client, types, errors, conformance suite
-  files-sdk-s3/       # Amazon S3 — sync (boto3) + async (aioboto3)
-  files-sdk-r2/       # Cloudflare R2 — subclasses S3 adapter
-  files-sdk-local/    # local filesystem — pure stdlib, zero deps
-  files-sdk-<x>/      # 15 stub packages awaiting contributors
+  files-sdk-s3/           # Amazon S3 — sync (boto3) + async (aioboto3)
+  files-sdk-r2/           # Cloudflare R2 — subclasses S3 adapter
+  files-sdk-local/        # local filesystem — pure stdlib, zero deps
+  files-sdk-uploadthing/  # UploadThing — httpx + ported HMAC presign (sync + async)
+  files-sdk-<x>/          # 14 stub packages awaiting contributors
   _template/          # scaffold reference (NOT a workspace member)
 tests/
   integration/        # live-backend tests (skipped without env vars)
@@ -45,6 +46,8 @@ Group: `files_sdk.adapters`
 | `r2-async` | `files_sdk_r2.AsyncR2Adapter` |
 | `local` | `files_sdk_local.LocalAdapter` |
 | `local-async` | `files_sdk_local.AsyncLocalAdapter` |
+| `uploadthing` | `files_sdk_uploadthing.UploadThingAdapter` |
+| `uploadthing-async` | `files_sdk_uploadthing.AsyncUploadThingAdapter` |
 
 Look up by name: `Files.from_name("s3", bucket="my-bucket")`
 

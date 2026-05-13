@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
 from files_sdk_uploadthing._hash import effect_hash_string, shuffle
-
 
 # ---- Hash.string --------------------------------------------------------
 # Reference values were computed by running the actual Effect.js Hash.string

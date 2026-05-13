@@ -51,14 +51,14 @@ def test_decode_token_rejects_non_json_payload() -> None:
     assert ei.value.code == "unauthorized"
 
 
-def test_decode_token_rejects_missing_apiKey() -> None:
+def test_decode_token_rejects_missing_api_key() -> None:
     raw = _encode({"appId": "a", "regions": ["x"]})
     with pytest.raises(FilesError) as ei:
         decode_token(raw)
     assert ei.value.code == "unauthorized"
 
 
-def test_decode_token_rejects_missing_appId() -> None:
+def test_decode_token_rejects_missing_app_id() -> None:
     raw = _encode({"apiKey": "k", "regions": ["x"]})
     with pytest.raises(FilesError) as ei:
         decode_token(raw)

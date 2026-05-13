@@ -29,7 +29,6 @@ from files_sdk_uploadthing._signing import (
     sign_payload,
 )
 
-
 # ---- sign_payload --------------------------------------------------------
 
 
@@ -44,14 +43,14 @@ def test_sign_payload_returns_prefixed_hex() -> None:
 def test_sign_payload_unicode_payload() -> None:
     sig = sign_payload("héllo wörld", "k")
     expected = hmac.new(
-        b"k", "héllo wörld".encode("utf-8"), hashlib.sha256
+        b"k", "héllo wörld".encode(), hashlib.sha256
     ).hexdigest()
     assert sig == f"hmac-sha256={expected}"
 
 
 def test_sign_payload_unicode_secret() -> None:
     sig = sign_payload("x", "sêcret")
-    expected = hmac.new("sêcret".encode("utf-8"), b"x", hashlib.sha256).hexdigest()
+    expected = hmac.new("sêcret".encode(), b"x", hashlib.sha256).hexdigest()
     assert sig == f"hmac-sha256={expected}"
 
 
@@ -172,7 +171,7 @@ def test_generate_file_key_has_expected_shape() -> None:
     assert all(c.isalnum() for c in k)
 
 
-def test_generate_file_key_deterministic_appId_prefix() -> None:
+def test_generate_file_key_deterministic_app_id_prefix() -> None:
     # The first 12 chars (encoded appId) must be stable for a given appId so
     # the ingest server's appId validation can succeed across uploads.
     a = generate_file_key("myapp", file_name="a", file_size=1, file_type="x", now_ms=1)

@@ -15,6 +15,7 @@ import base64
 import binascii
 import json
 from dataclasses import dataclass
+from typing import Any, cast
 
 from files_sdk.errors import FilesError
 
@@ -42,22 +43,23 @@ def decode_token(raw: str) -> UploadThingToken:
             provider="uploadthing",
         ) from e
     try:
-        data = json.loads(payload)
+        loaded: object = json.loads(payload)
     except json.JSONDecodeError as e:
         raise FilesError(
             code="unauthorized",
             message=f"UPLOADTHING_TOKEN payload is not JSON: {e}",
             provider="uploadthing",
         ) from e
-    if not isinstance(data, dict):
+    if not isinstance(loaded, dict):
         raise FilesError(
             code="unauthorized",
             message="UPLOADTHING_TOKEN payload is not a JSON object",
             provider="uploadthing",
         )
+    data = cast("dict[str, Any]", loaded)
     api_key = data.get("apiKey")
     app_id = data.get("appId")
-    regions = data.get("regions")
+    regions_raw = data.get("regions")
     if not isinstance(api_key, str) or not api_key:
         raise FilesError(
             code="unauthorized",
@@ -70,12 +72,21 @@ def decode_token(raw: str) -> UploadThingToken:
             message="UPLOADTHING_TOKEN is missing appId",
             provider="uploadthing",
         )
-    if not isinstance(regions, list) or not regions or not all(isinstance(r, str) for r in regions):
+    if not isinstance(regions_raw, list) or not regions_raw:
         raise FilesError(
             code="unauthorized",
             message="UPLOADTHING_TOKEN is missing regions",
             provider="uploadthing",
         )
+    regions: list[str] = []
+    for r in cast("list[Any]", regions_raw):
+        if not isinstance(r, str):
+            raise FilesError(
+                code="unauthorized",
+                message="UPLOADTHING_TOKEN regions must be strings",
+                provider="uploadthing",
+            )
+        regions.append(r)
     return UploadThingToken(api_key=api_key, app_id=app_id, regions=tuple(regions))
 
 

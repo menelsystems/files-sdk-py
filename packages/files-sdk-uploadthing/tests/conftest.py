@@ -7,6 +7,7 @@ still run in environments without a UT account.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
@@ -23,10 +24,8 @@ def _skip_if_no_token() -> None:
 def _cleanup_keys(adapter, keys: list[str]) -> None:
     """Best-effort delete of every key uploaded during a test."""
     for k in keys:
-        try:
+        with contextlib.suppress(Exception):
             adapter.delete(k)
-        except Exception:
-            pass
 
 
 @pytest.fixture
@@ -82,10 +81,8 @@ async def async_adapter() -> AsyncIterator:
         yield a
     finally:
         for k in uploaded:
-            try:
+            with contextlib.suppress(Exception):
                 await a.delete(k)
-            except Exception:
-                pass
         await a.aclose()
 
 
