@@ -100,6 +100,27 @@ jobs:
           FILES_SDK_R2_INTEGRATION: "1"
         run: uv run pytest tests/integration/test_r2_real.py -v -m r2_integration
 
+  uploadthing-integration:
+    # Real UploadThing round-trip. Manual trigger only (workflow_dispatch) to
+    # avoid storing files in the UT account on every PR. Triggered via:
+    #   gh workflow run ci.yml                                                      (real GitHub)
+    #   act workflow_dispatch -j uploadthing-integration --secret-file .secrets     (local)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+      - name: Set Python 3.13
+        run: uv python install 3.13
+      - name: Install
+        run: uv sync --all-packages
+      - name: UploadThing conformance tests
+        env:
+          UPLOADTHING_TOKEN: ${{ secrets.UPLOADTHING_TOKEN }}
+        run: uv run pytest packages/files-sdk-uploadthing/tests -v
+
   aws-s3-integration:
     # Real Amazon S3 round-trip. Manual trigger only (workflow_dispatch) to
     # avoid surprising S3 costs on every PR. Bucket must be a dedicated test
