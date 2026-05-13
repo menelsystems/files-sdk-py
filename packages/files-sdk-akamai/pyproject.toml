@@ -1,12 +1,15 @@
 [project]
 name = "files-sdk-akamai"
-version = "0.0.0"
-description = "Akamai adapter for files-sdk (stub)"
+dynamic = ["version"]
+description = "Akamai (Linode) Object Storage adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
+keywords = ["akamai", "linode", "storage", "files", "object-storage", "s3-compatible"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -15,17 +18,29 @@ classifiers = [
 ]
 dependencies = [
     "files-sdk",
+    "files-sdk-s3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/menelsystems/files-sdk-py"
+Repository = "https://github.com/menelsystems/files-sdk-py"
+Issues = "https://github.com/menelsystems/files-sdk-py/issues"
 
 [project.entry-points."files_sdk.adapters"]
 akamai = "files_sdk_akamai:AkamaiAdapter"
+"akamai-async" = "files_sdk_akamai:AsyncAkamaiAdapter"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "^(?P<version>.+)$"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/files_sdk_akamai"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 testpaths = ["tests"]

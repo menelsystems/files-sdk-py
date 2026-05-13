@@ -1,4 +1,4 @@
-"""Synchronous Hetzner Object Storage adapter."""
+"""Async Hetzner Object Storage adapter."""
 
 from __future__ import annotations
 
@@ -6,18 +6,11 @@ import os
 from typing import Any, ClassVar
 
 from files_sdk.errors import FilesError
-from files_sdk_s3 import S3Adapter
+from files_sdk_s3 import AsyncS3Adapter
 
 
-class HetznerAdapter(S3Adapter):
-    """Hetzner Object Storage adapter (S3-compatible).
-
-    Endpoint is constructed from ``region`` as
-    ``https://<region>.your-objectstorage.com``. Default public URLs use the
-    bucket-virtual-host form ``https://<bucket>.<region>.your-objectstorage.com/<key>``.
-    """
-
-    name: ClassVar[str] = "hetzner"
+class AsyncHetznerAdapter(AsyncS3Adapter):
+    name: ClassVar[str] = "hetzner-async"
 
     def __init__(
         self,
@@ -34,28 +27,27 @@ class HetznerAdapter(S3Adapter):
         if not resolved_region:
             raise FilesError(
                 code="unauthorized",
-                message="HetznerAdapter requires region= or HETZNER_REGION env var",
+                message="AsyncHetznerAdapter requires region= or HETZNER_REGION env var",
                 provider=self.name,
             )
         self._region = resolved_region
         self._public_url_base = public_url_base or os.environ.get("HETZNER_PUBLIC_URL_BASE")
-        default_endpoint = f"https://{resolved_region}.your-objectstorage.com"
         kwargs: dict[str, Any] = dict(
             bucket=bucket or os.environ.get("HETZNER_BUCKET"),
             region=resolved_region,
             access_key_id=access_key_id or os.environ.get("HETZNER_ACCESS_KEY_ID"),
             secret_access_key=secret_access_key or os.environ.get("HETZNER_SECRET_ACCESS_KEY"),
-            endpoint_url=_endpoint_override or default_endpoint,
+            endpoint_url=_endpoint_override or f"https://{resolved_region}.your-objectstorage.com",
         )
         if multipart_threshold is not None:
             kwargs["multipart_threshold"] = multipart_threshold
         super().__init__(**kwargs)
 
-    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
         if public:
             base = (
                 self._public_url_base
                 or f"https://{self.bucket}.{self._region}.your-objectstorage.com"
             )
             return f"{base.rstrip('/')}/{key}"
-        return super().url(key, expires_in=expires_in, public=False)
+        return await super().url(key, expires_in=expires_in, public=False)

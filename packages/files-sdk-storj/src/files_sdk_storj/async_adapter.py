@@ -1,4 +1,4 @@
-"""Synchronous Storj DCS adapter."""
+"""Async Storj DCS adapter."""
 
 from __future__ import annotations
 
@@ -6,23 +6,11 @@ import os
 from typing import Any, ClassVar
 
 from files_sdk.errors import FilesError
-from files_sdk_s3 import S3Adapter
+from files_sdk_s3 import AsyncS3Adapter
 
 
-class StorjAdapter(S3Adapter):
-    """Storj DCS storage adapter (S3-compatible via the Storj gateway).
-
-    Uses the global gateway ``https://gateway.storjshare.io`` by default.
-    Pass ``gateway_region`` (e.g. ``us1``, ``eu1``, ``ap1``) for the
-    multi-region gateway, which constructs
-    ``https://gateway.<gateway_region>.storjshare.io``.
-
-    Public URLs require Storj's Linksharing service and have no canonical
-    construction; pass ``public_url_base`` (e.g. a Linksharing root URL) to
-    use ``url(public=True)``.
-    """
-
-    name: ClassVar[str] = "storj"
+class AsyncStorjAdapter(AsyncS3Adapter):
+    name: ClassVar[str] = "storj-async"
 
     def __init__(
         self,
@@ -53,7 +41,7 @@ class StorjAdapter(S3Adapter):
             kwargs["multipart_threshold"] = multipart_threshold
         super().__init__(**kwargs)
 
-    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
         if public:
             if not self._public_url_base:
                 raise FilesError(
@@ -65,4 +53,4 @@ class StorjAdapter(S3Adapter):
                     provider=self.name,
                 )
             return f"{self._public_url_base.rstrip('/')}/{key}"
-        return super().url(key, expires_in=expires_in, public=False)
+        return await super().url(key, expires_in=expires_in, public=False)

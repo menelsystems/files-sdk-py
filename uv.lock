@@ -656,14 +656,17 @@ requires-dist = [{ name = "pydantic", specifier = ">=2.8" }]
 
 [[package]]
 name = "files-sdk-akamai"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-akamai" }
 dependencies = [
     { name = "files-sdk" },
+    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
 
 [[package]]
 name = "files-sdk-azure"
@@ -689,14 +692,17 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-digitalocean"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-digitalocean" }
 dependencies = [
     { name = "files-sdk" },
+    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
 
 [[package]]
 name = "files-sdk-dropbox"
@@ -733,14 +739,17 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-hetzner"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-hetzner" }
 dependencies = [
     { name = "files-sdk" },
+    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
 
 [[package]]
 name = "files-sdk-local"
@@ -754,14 +763,17 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-minio"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-minio" }
 dependencies = [
     { name = "files-sdk" },
+    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
 
 [[package]]
 name = "files-sdk-netlify"
@@ -819,14 +831,17 @@ requires-dist = [
 
 [[package]]
 name = "files-sdk-storj"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-storj" }
 dependencies = [
     { name = "files-sdk" },
+    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
 
 [[package]]
 name = "files-sdk-supabase"

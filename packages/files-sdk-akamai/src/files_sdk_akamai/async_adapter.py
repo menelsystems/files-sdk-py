@@ -1,4 +1,4 @@
-"""Synchronous Akamai (Linode) Object Storage adapter."""
+"""Async Akamai (Linode) Object Storage adapter."""
 
 from __future__ import annotations
 
@@ -6,18 +6,11 @@ import os
 from typing import Any, ClassVar
 
 from files_sdk.errors import FilesError
-from files_sdk_s3 import S3Adapter
+from files_sdk_s3 import AsyncS3Adapter
 
 
-class AkamaiAdapter(S3Adapter):
-    """Akamai (Linode) Object Storage adapter (S3-compatible).
-
-    Endpoint is constructed from ``cluster`` as
-    ``https://<cluster>.linodeobjects.com``. Examples: ``us-east-1``,
-    ``us-iad-1``, ``us-mia-1``, ``eu-central-1``, ``ap-south-1``.
-    """
-
-    name: ClassVar[str] = "akamai"
+class AsyncAkamaiAdapter(AsyncS3Adapter):
+    name: ClassVar[str] = "akamai-async"
 
     def __init__(
         self,
@@ -34,27 +27,26 @@ class AkamaiAdapter(S3Adapter):
         if not resolved_cluster:
             raise FilesError(
                 code="unauthorized",
-                message="AkamaiAdapter requires cluster= or AKAMAI_CLUSTER env var",
+                message="AsyncAkamaiAdapter requires cluster= or AKAMAI_CLUSTER env var",
                 provider=self.name,
             )
         self._cluster = resolved_cluster
         self._public_url_base = public_url_base or os.environ.get("AKAMAI_PUBLIC_URL_BASE")
-        default_endpoint = f"https://{resolved_cluster}.linodeobjects.com"
         kwargs: dict[str, Any] = dict(
             bucket=bucket or os.environ.get("AKAMAI_BUCKET"),
             region=resolved_cluster,
             access_key_id=access_key_id or os.environ.get("AKAMAI_ACCESS_KEY_ID"),
             secret_access_key=secret_access_key or os.environ.get("AKAMAI_SECRET_ACCESS_KEY"),
-            endpoint_url=_endpoint_override or default_endpoint,
+            endpoint_url=_endpoint_override or f"https://{resolved_cluster}.linodeobjects.com",
         )
         if multipart_threshold is not None:
             kwargs["multipart_threshold"] = multipart_threshold
         super().__init__(**kwargs)
 
-    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
         if public:
             base = (
                 self._public_url_base or f"https://{self.bucket}.{self._cluster}.linodeobjects.com"
             )
             return f"{base.rstrip('/')}/{key}"
-        return super().url(key, expires_in=expires_in, public=False)
+        return await super().url(key, expires_in=expires_in, public=False)

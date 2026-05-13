@@ -1,4 +1,4 @@
-"""Synchronous MinIO adapter."""
+"""Async MinIO adapter."""
 
 from __future__ import annotations
 
@@ -6,18 +6,11 @@ import os
 from typing import Any, ClassVar
 
 from files_sdk.errors import FilesError
-from files_sdk_s3 import S3Adapter
+from files_sdk_s3 import AsyncS3Adapter
 
 
-class MinIOAdapter(S3Adapter):
-    """MinIO storage adapter (S3-compatible).
-
-    MinIO is self-hosted, so the endpoint URL is required and has no canonical
-    default. The region defaults to ``us-east-1`` (the standard MinIO default)
-    but can be overridden per-deployment.
-    """
-
-    name: ClassVar[str] = "minio"
+class AsyncMinIOAdapter(AsyncS3Adapter):
+    name: ClassVar[str] = "minio-async"
 
     def __init__(
         self,
@@ -34,7 +27,7 @@ class MinIOAdapter(S3Adapter):
         if not resolved_endpoint:
             raise FilesError(
                 code="unauthorized",
-                message="MinIOAdapter requires endpoint= or MINIO_ENDPOINT env var",
+                message="AsyncMinIOAdapter requires endpoint= or MINIO_ENDPOINT env var",
                 provider=self.name,
             )
         self._public_url_base = public_url_base or os.environ.get("MINIO_PUBLIC_URL_BASE")
@@ -49,7 +42,7 @@ class MinIOAdapter(S3Adapter):
             kwargs["multipart_threshold"] = multipart_threshold
         super().__init__(**kwargs)
 
-    def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
+    async def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
         if public:
             if not self._public_url_base:
                 raise FilesError(
@@ -58,4 +51,4 @@ class MinIOAdapter(S3Adapter):
                     provider=self.name,
                 )
             return f"{self._public_url_base.rstrip('/')}/{key}"
-        return super().url(key, expires_in=expires_in, public=False)
+        return await super().url(key, expires_in=expires_in, public=False)

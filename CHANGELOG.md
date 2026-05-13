@@ -13,6 +13,11 @@ published, per-package changelogs may be split out.
 
 ### Added
 
+- Tier-1 S3-compatible adapters (closes #20, #21, #22, #23, #24): `files-sdk-minio`,
+  `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-akamai`,
+  `files-sdk-storj`. Each ships sync + async classes that subclass the S3
+  adapter, expose provider env-var resolution, and reuse the shared moto-backed
+  conformance suite. Drops the stub-package count from 14 to 9 (post-#25).
 - `files-sdk` core package: `FilesError` with code enum, pydantic types
   (metadata, stored file, list page), `Adapter` and `AsyncAdapter` Protocols,
   entry-point-based adapter registry, and sync/async `Files`/`AsyncFiles`
