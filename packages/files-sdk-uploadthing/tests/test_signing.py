@@ -42,9 +42,7 @@ def test_sign_payload_returns_prefixed_hex() -> None:
 
 def test_sign_payload_unicode_payload() -> None:
     sig = sign_payload("héllo wörld", "k")
-    expected = hmac.new(
-        b"k", "héllo wörld".encode(), hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(b"k", "héllo wörld".encode(), hashlib.sha256).hexdigest()
     assert sig == f"hmac-sha256={expected}"
 
 

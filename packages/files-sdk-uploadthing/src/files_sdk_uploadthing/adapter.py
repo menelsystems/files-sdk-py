@@ -125,9 +125,7 @@ class UploadThingAdapter:
         )
         url = extract_url_from_get_file_url_response(resp)
         if url is None:
-            raise FilesError(
-                code="not_found", message=f"getFileUrl: {key}", provider=self.name
-            )
+            raise FilesError(code="not_found", message=f"getFileUrl: {key}", provider=self.name)
         return url
 
     def _presigned_upload_url(
@@ -239,9 +237,7 @@ class UploadThingAdapter:
                 "GET", url, timeout=self._client.timeout, follow_redirects=True
             ) as resp:
                 if resp.status_code == 404:
-                    raise FilesError(
-                        code="not_found", message=f"stream: {key}", provider=self.name
-                    )
+                    raise FilesError(code="not_found", message=f"stream: {key}", provider=self.name)
                 if resp.status_code >= 400:
                     resp.read()
                     raise normalize_http_error("stream", resp.status_code, resp.content)
@@ -332,9 +328,7 @@ class UploadThingAdapter:
                     size=int(f.get("size", 0)),
                     etag=None,
                     content_type=None,
-                    last_modified=datetime.fromtimestamp(
-                        int(f.get("uploadedAt", 0)) / 1000, tz=UTC
-                    )
+                    last_modified=datetime.fromtimestamp(int(f.get("uploadedAt", 0)) / 1000, tz=UTC)
                     if f.get("uploadedAt")
                     else datetime.now(UTC),
                     metadata={},

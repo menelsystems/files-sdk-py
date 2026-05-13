@@ -15,9 +15,7 @@ def _encode(payload: dict[str, object]) -> str:
 
 
 def test_decode_token_extracts_fields() -> None:
-    raw = _encode(
-        {"apiKey": "sk_live_abc", "appId": "myapp", "regions": ["sea1", "fra1"]}
-    )
+    raw = _encode({"apiKey": "sk_live_abc", "appId": "myapp", "regions": ["sea1", "fra1"]})
     tok = decode_token(raw)
     assert isinstance(tok, UploadThingToken)
     assert tok.api_key == "sk_live_abc"

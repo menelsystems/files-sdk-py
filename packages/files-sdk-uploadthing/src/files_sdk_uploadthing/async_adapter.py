@@ -99,9 +99,7 @@ class AsyncUploadThingAdapter:
         )
         url = extract_url_from_get_file_url_response(resp)
         if url is None:
-            raise FilesError(
-                code="not_found", message=f"getFileUrl: {key}", provider=self.name
-            )
+            raise FilesError(code="not_found", message=f"getFileUrl: {key}", provider=self.name)
         return url
 
     def _presigned_upload_url(
@@ -154,9 +152,7 @@ class AsyncUploadThingAdapter:
                     files={"file": (file_name, data, content_type)},
                 )
             except httpx.HTTPError as e:
-                raise FilesError(
-                    code="provider", message=f"upload: {e}", provider=self.name
-                ) from e
+                raise FilesError(code="provider", message=f"upload: {e}", provider=self.name) from e
         if resp.status_code >= 400:
             raise normalize_http_error("upload", resp.status_code, resp.content)
         return FileMetadata(
@@ -201,9 +197,7 @@ class AsyncUploadThingAdapter:
 
         async def gen() -> AsyncIterator[bytes]:
             url = adapter._cdn_url(key)
-            async with httpx.AsyncClient(
-                timeout=adapter._timeout, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=adapter._timeout, follow_redirects=True) as client:
                 try:
                     probe = await client.get(url, headers={"Range": "bytes=0-0"})
                     if probe.status_code == 404:
@@ -217,9 +211,7 @@ class AsyncUploadThingAdapter:
                             )
                         if resp.status_code >= 400:
                             await resp.aread()
-                            raise normalize_http_error(
-                                "stream", resp.status_code, resp.content
-                            )
+                            raise normalize_http_error("stream", resp.status_code, resp.content)
                         async for chunk in resp.aiter_bytes(chunk_size=chunk_size):
                             yield chunk
                 except httpx.HTTPError as e:
@@ -238,9 +230,7 @@ class AsyncUploadThingAdapter:
                     url = await self._resolve_cdn_url_via_api(key)
                     resp = await client.get(url, headers={"Range": "bytes=0-0"})
             except httpx.HTTPError as e:
-                raise FilesError(
-                    code="provider", message=f"head: {e}", provider=self.name
-                ) from e
+                raise FilesError(code="provider", message=f"head: {e}", provider=self.name) from e
         if resp.status_code == 404:
             raise FilesError(code="not_found", message=f"head: {key}", provider=self.name)
         if resp.status_code >= 400:
@@ -293,9 +283,7 @@ class AsyncUploadThingAdapter:
                     size=int(f.get("size", 0)),
                     etag=None,
                     content_type=None,
-                    last_modified=datetime.fromtimestamp(
-                        int(f.get("uploadedAt", 0)) / 1000, tz=UTC
-                    )
+                    last_modified=datetime.fromtimestamp(int(f.get("uploadedAt", 0)) / 1000, tz=UTC)
                     if f.get("uploadedAt")
                     else datetime.now(UTC),
                     metadata={},

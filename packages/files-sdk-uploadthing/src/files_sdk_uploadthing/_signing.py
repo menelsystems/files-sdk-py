@@ -63,9 +63,7 @@ def _append_param(parts: list[str], key: str, value: str) -> None:
 
 def sign_payload(payload: str, secret: str) -> str:
     """HMAC-SHA256 hex digest of `payload` with `secret`, prefixed `hmac-sha256=`."""
-    digest = hmac.new(
-        secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
-    ).hexdigest()
+    digest = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{_SIGNATURE_PREFIX}{digest}"
 
 
@@ -112,9 +110,7 @@ def generate_signed_url(
     return urllib.parse.urlunparse(parsed._replace(query=final_query))
 
 
-_SQIDS_DEFAULT_ALPHABET = (
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-)
+_SQIDS_DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
 def generate_file_key(
