@@ -9,7 +9,8 @@ cloud object/blob storage providers.
 - **[files-sdk-local](packages/files-sdk-local/)** — local filesystem (zero deps, ideal for dev/test)
 - **[files-sdk-s3](packages/files-sdk-s3/)** — Amazon S3 (sync + async)
 - **[files-sdk-r2](packages/files-sdk-r2/)** — Cloudflare R2 (sync + async)
-- 15 stub packages awaiting implementation — see each `CLAIM.md`
+- **[files-sdk-uploadthing](packages/files-sdk-uploadthing/)** — UploadThing (sync + async)
+- 14 stub packages awaiting implementation — see each `CLAIM.md`
 
 ## Quickstart (no cloud needed)
 

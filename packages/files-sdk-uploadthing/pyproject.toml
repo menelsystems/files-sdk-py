@@ -15,10 +15,13 @@ classifiers = [
 ]
 dependencies = [
     "files-sdk",
+    "httpx>=0.27",
+    "sqids>=0.5.2",
 ]
 
 [project.entry-points."files_sdk.adapters"]
 uploadthing = "files_sdk_uploadthing:UploadThingAdapter"
+uploadthing-async = "files_sdk_uploadthing:AsyncUploadThingAdapter"
 
 [build-system]
 requires = ["hatchling"]
