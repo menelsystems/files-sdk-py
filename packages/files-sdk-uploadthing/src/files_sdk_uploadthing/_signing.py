@@ -30,7 +30,7 @@ import urllib.parse
 from collections.abc import Mapping
 from typing import Any
 
-from sqids import Sqids  # type: ignore[import-untyped]
+from sqids import Sqids  # type: ignore[import-untyped]  # sqids does not ship inline type hints
 
 from ._hash import effect_hash_string, shuffle
 

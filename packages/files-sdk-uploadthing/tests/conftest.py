@@ -49,8 +49,8 @@ def adapter() -> Iterator:
         uploaded.append(dst)
         return real_copy(src, dst)
 
-    a.upload = upload  # type: ignore[method-assign]
-    a.copy = copy  # type: ignore[method-assign]
+    a.upload = upload  # type: ignore[method-assign]  # test-time monkeypatch for teardown key tracking
+    a.copy = copy  # type: ignore[method-assign]  # test-time monkeypatch for teardown key tracking
     try:
         yield a
     finally:
@@ -75,8 +75,8 @@ async def async_adapter() -> AsyncIterator:
         uploaded.append(dst)
         return await real_copy(src, dst)
 
-    a.upload = upload  # type: ignore[method-assign]
-    a.copy = copy  # type: ignore[method-assign]
+    a.upload = upload  # type: ignore[method-assign]  # test-time monkeypatch for teardown key tracking
+    a.copy = copy  # type: ignore[method-assign]  # test-time monkeypatch for teardown key tracking
     try:
         yield a
     finally:
