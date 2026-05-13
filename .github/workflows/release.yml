@@ -10,8 +10,10 @@ name: Release
 #   v0.1.0
 #   v1.2.3
 #
-# Authentication: PyPI Trusted Publishing (OIDC) — no API tokens. Each package
-# needs a one-time pending publisher entry on PyPI; see RELEASING.md.
+# Authentication: TEMPORARY — account-scoped API token via PYPI_API_TOKEN
+# secret on the `pypi` environment. PyPI's /manage/ UI is 503'ing so trusted
+# publishers can't be configured right now. Revert this commit and restore
+# OIDC + PEP 740 attestations once /manage/account/publishing/ recovers.
 
 on:
   push:
@@ -128,28 +130,28 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/files-sdk/dist
-          attestations: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish files-sdk-s3
         if: github.event_name == 'push' || inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/files-sdk-s3/dist
-          attestations: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish files-sdk-local
         if: github.event_name == 'push' || inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/files-sdk-local/dist
-          attestations: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish files-sdk-r2
         if: github.event_name == 'push' || inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/files-sdk-r2/dist
-          attestations: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
