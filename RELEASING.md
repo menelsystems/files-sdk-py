@@ -15,7 +15,7 @@ The workflow declares `environment: pypi` on its release job, so it's already wi
 
 ## One-time PyPI setup (per package)
 
-For each package: `files-sdk`, `files-sdk-s3`, `files-sdk-r2`, `files-sdk-local`, `files-sdk-minio`, `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-linode`, `files-sdk-storj`.
+For each package: `files-sdk`, `files-sdk-s3`, `files-sdk-local`, `files-sdk-uploadthing`, `files-sdk-r2`, `files-sdk-minio`, `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-linode`, `files-sdk-storj`.
 
 1. Go to <https://pypi.org/manage/account/publishing/>.
 2. **Add a new pending publisher** (the project doesn't exist on PyPI yet on a first release).
@@ -56,11 +56,11 @@ Workflow defense-in-depth: `gh release create --verify-tag` (already wired) ensu
 
 4. **Watch**: <https://github.com/menelsystems/files-sdk-py/actions/workflows/release.yml>. The workflow will:
    - validate the tag matches `VERSION`
-   - build wheel + sdist for all 9 packages
+   - build wheel + sdist for all 10 packages
    - verify LICENSE is bundled in each
    - record GitHub artifact attestation (SLSA Build L3 provenance to Sigstore)
    - publish each package to PyPI via Trusted Publishing (PEP 740 attestation on each)
-   - create a GitHub Release with all 18 artifacts attached
+   - create a GitHub Release with all 20 artifacts attached
 
 5. **Verify install**:
    ```sh
@@ -85,10 +85,10 @@ The workflow runs the version check + build + LICENSE verification + GitHub atte
 The workflow publishes in dependency order so downstream installs resolve cleanly during the brief publishing window:
 
 1. `files-sdk` (core — everyone imports `Adapter` / `AsyncAdapter`)
-2. `files-sdk-s3`, `files-sdk-local` (independent; sequential here, but order doesn't matter between them)
+2. `files-sdk-s3`, `files-sdk-local`, `files-sdk-uploadthing` (depend on core only; sequential here, but order doesn't matter between them)
 3. `files-sdk-r2`, `files-sdk-minio`, `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-linode`, `files-sdk-storj` (all depend on `files-sdk-s3` on PyPI)
 
-This only matters for `uv add` calls in the seconds between publish-step-1 and publish-step-4 on the **first** release. Subsequent releases are no-ops dep-wise.
+This only matters for `uv add` calls in the seconds between the core publish and the last adapter publish on the **first** release. Subsequent releases are no-ops dep-wise.
 
 ## Pre-release versions
 

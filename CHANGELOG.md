@@ -11,6 +11,8 @@ published, per-package changelogs may be split out.
 
 ## [Unreleased]
 
+## [0.1.0a2] - 2026-05-14
+
 ### Added
 
 - `files-sdk-uploadthing` adapter (#25): sync + async classes mapping the
@@ -18,8 +20,8 @@ published, per-package changelogs may be split out.
   presigned URLs (no UT-side roundtrip) and a CDN-via-API fallback for
   non-ASCII keys. 77/77 conformance (14 sync live + 14 async live + 35
   offline). Migrated to lockstep VERSION + LICENSE-bundled + OIDC publish
-  wiring alongside the tier-1 batch (was merged before the release pipeline
-  scaled out).
+  wiring alongside the tier-1 batch (#29 — was merged before the release
+  pipeline scaled out).
 - Tier-1 S3-compatible adapters (closes #21, #22, #23, #24): `files-sdk-minio`,
   `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-storj`. Each ships
   sync + async classes that subclass the S3 adapter, expose provider env-var
@@ -28,8 +30,22 @@ published, per-package changelogs may be split out.
 - `files-sdk-linode` adapter for Linode Object Storage (Akamai-owned,
   S3-compatible). Same subclassing pattern. The `files-sdk-akamai` stub for
   the original NetStorage HTTP API + HMAC-SHA256 issue (#20) remains
-  unimplemented and is **not** closed by this PR — NetStorage is a different
+  unimplemented and is **not** closed by #26 — NetStorage is a different
   protocol and warrants its own package.
+
+### Changed
+
+- Release pipeline: reverted the temporary account-scoped api-token auth used
+  for the a1 emergency release back to PyPI Trusted Publishing (OIDC) + PEP 740
+  attestations (#9), then scaled the build/verify/publish wiring to all 10
+  first-party packages (#26, #29).
+- READMEs showcase sync + async as first-class: side-by-side quickstarts, a
+  sync↔async pair table, and contrasting streaming examples (#27).
+
+## [0.1.0a1] - 2026-05-12
+
+### Added
+
 - `files-sdk` core package: `FilesError` with code enum, pydantic types
   (metadata, stored file, list page), `Adapter` and `AsyncAdapter` Protocols,
   entry-point-based adapter registry, and sync/async `Files`/`AsyncFiles`
