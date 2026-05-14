@@ -13,6 +13,11 @@ files-sdk = { workspace = true }
 files-sdk-s3 = { workspace = true }
 files-sdk-r2 = { workspace = true }
 files-sdk-uploadthing = { workspace = true }
+files-sdk-minio = { workspace = true }
+files-sdk-digitalocean = { workspace = true }
+files-sdk-hetzner = { workspace = true }
+files-sdk-linode = { workspace = true }
+files-sdk-storj = { workspace = true }
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"

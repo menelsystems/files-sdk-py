@@ -1,0 +1,46 @@
+[project]
+name = "files-sdk-linode"
+dynamic = ["version"]
+description = "Linode Object Storage adapter for files-sdk"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
+keywords = ["linode", "akamai", "storage", "files", "object-storage", "s3-compatible"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "files-sdk",
+    "files-sdk-s3",
+]
+
+[project.urls]
+Homepage = "https://github.com/menelsystems/files-sdk-py"
+Repository = "https://github.com/menelsystems/files-sdk-py"
+Issues = "https://github.com/menelsystems/files-sdk-py/issues"
+
+[project.entry-points."files_sdk.adapters"]
+linode = "files_sdk_linode:LinodeAdapter"
+"linode-async" = "files_sdk_linode:AsyncLinodeAdapter"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "^(?P<version>.+)$"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/files_sdk_linode"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
