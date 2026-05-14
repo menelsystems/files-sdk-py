@@ -21,9 +21,9 @@ def test_worktreeinclude_lists_secrets() -> None:
     worktreeinclude = REPO_ROOT / ".worktreeinclude"
     assert worktreeinclude.is_file(), ".worktreeinclude missing from repo root"
     patterns = [
-        line.strip()
+        stripped
         for line in worktreeinclude.read_text().splitlines()
-        if line.strip() and not line.startswith("#")
+        if (stripped := line.strip()) and not stripped.startswith("#")
     ]
     assert ".secrets" in patterns
 
