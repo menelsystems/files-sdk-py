@@ -46,6 +46,30 @@ def test_async_linode_requires_cluster(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ei.value.code == "unauthorized"
 
 
+async def test_async_linode_default_public_url_uses_virtual_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LINODE_CLUSTER", "eu-central-1")
+    monkeypatch.setenv("LINODE_ACCESS_KEY_ID", "k")
+    monkeypatch.setenv("LINODE_SECRET_ACCESS_KEY", "s")
+    monkeypatch.delenv("LINODE_PUBLIC_URL_BASE", raising=False)
+    a = AsyncLinodeAdapter(bucket="my-bucket")
+    assert (
+        await a.url("hello.txt", public=True)
+        == "https://my-bucket.eu-central-1.linodeobjects.com/hello.txt"
+    )
+
+
+async def test_async_linode_public_url_with_base_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LINODE_CLUSTER", "ap-south-1")
+    monkeypatch.setenv("LINODE_ACCESS_KEY_ID", "k")
+    monkeypatch.setenv("LINODE_SECRET_ACCESS_KEY", "s")
+    a = AsyncLinodeAdapter(bucket="b", public_url_base="https://cdn.example.com")
+    assert await a.url("hello.txt", public=True) == "https://cdn.example.com/hello.txt"
+
+
 def test_linode_roundtrip_via_moto_endpoint(
     moto_endpoint: str,
     linode_bucket: str,
