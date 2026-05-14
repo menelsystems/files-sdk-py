@@ -32,6 +32,13 @@ uv run ruff check .      # lint
 uv run ruff format .     # format
 ```
 
+## Worktrees
+
+`claude --worktree <name>` spins an isolated checkout under `.claude/worktrees/`.
+`.worktreeinclude` copies `.secrets` in automatically; a `SessionStart` hook
+(`scripts/worktree-init.sh`) builds `.venv` on the first session. Falls back to a
+manual `uv sync --all-packages` if `uv` is missing or the sync fails.
+
 ## Testing
 
 - Unit tests: `uv run pytest` — no external services needed
