@@ -1,60 +1,50 @@
-"""Synchronous Akamai (Linode) Object Storage adapter."""
+"""Stub Akamai adapter — claim this in CLAIM.md and implement."""
 
 from __future__ import annotations
 
-import os
+from collections.abc import Iterator
 from typing import Any, ClassVar
 
-from files_sdk.errors import FilesError
-from files_sdk_s3 import S3Adapter
+from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
+
+_NOT_IMPLEMENTED = "files-sdk-akamai is a stub. See packages/files-sdk-akamai/CLAIM.md to claim it."
 
 
-class AkamaiAdapter(S3Adapter):
-    """Akamai (Linode) Object Storage adapter (S3-compatible).
-
-    Endpoint is constructed from ``cluster`` as
-    ``https://<cluster>.linodeobjects.com``. Examples: ``us-east-1``,
-    ``us-iad-1``, ``us-mia-1``, ``eu-central-1``, ``ap-south-1``.
-    """
-
+class AkamaiAdapter:
     name: ClassVar[str] = "akamai"
 
-    def __init__(
-        self,
-        *,
-        bucket: str | None = None,
-        cluster: str | None = None,
-        access_key_id: str | None = None,
-        secret_access_key: str | None = None,
-        public_url_base: str | None = None,
-        multipart_threshold: int | None = None,
-        _endpoint_override: str | None = None,
-    ) -> None:
-        resolved_cluster = cluster or os.environ.get("AKAMAI_CLUSTER")
-        if not resolved_cluster:
-            raise FilesError(
-                code="unauthorized",
-                message="AkamaiAdapter requires cluster= or AKAMAI_CLUSTER env var",
-                provider=self.name,
-            )
-        self._cluster = resolved_cluster
-        self._public_url_base = public_url_base or os.environ.get("AKAMAI_PUBLIC_URL_BASE")
-        default_endpoint = f"https://{resolved_cluster}.linodeobjects.com"
-        kwargs: dict[str, Any] = dict(
-            bucket=bucket or os.environ.get("AKAMAI_BUCKET"),
-            region=resolved_cluster,
-            access_key_id=access_key_id or os.environ.get("AKAMAI_ACCESS_KEY_ID"),
-            secret_access_key=secret_access_key or os.environ.get("AKAMAI_SECRET_ACCESS_KEY"),
-            endpoint_url=_endpoint_override or default_endpoint,
-        )
-        if multipart_threshold is not None:
-            kwargs["multipart_threshold"] = multipart_threshold
-        super().__init__(**kwargs)
+    def __init__(self, **_: Any) -> None:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def download(self, key: str) -> StoredFile:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def head(self, key: str) -> FileMetadata:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def delete(self, key: str) -> None:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def list(
+        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
+    ) -> ListPage:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def copy(self, src: str, dst: str) -> FileMetadata:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
 
     def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
-        if public:
-            base = (
-                self._public_url_base or f"https://{self.bucket}.{self._cluster}.linodeobjects.com"
-            )
-            return f"{base.rstrip('/')}/{key}"
-        return super().url(key, expires_in=expires_in, public=False)
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
+        raise NotImplementedError(_NOT_IMPLEMENTED)
+
+    @property
+    def raw(self) -> Any:
+        raise NotImplementedError(_NOT_IMPLEMENTED)

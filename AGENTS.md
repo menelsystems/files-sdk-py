@@ -14,9 +14,9 @@ packages/
   files-sdk-minio/         # MinIO — subclasses S3 adapter
   files-sdk-digitalocean/  # DigitalOcean Spaces — subclasses S3 adapter
   files-sdk-hetzner/       # Hetzner Object Storage — subclasses S3 adapter
-  files-sdk-akamai/        # Akamai (Linode) Object Storage — subclasses S3 adapter
+  files-sdk-linode/        # Linode Object Storage — subclasses S3 adapter
   files-sdk-storj/         # Storj DCS — subclasses S3 adapter
-  files-sdk-<x>/           # 9 stub packages awaiting contributors
+  files-sdk-<x>/           # 10 stub packages awaiting contributors
   _template/          # scaffold reference (NOT a workspace member)
 tests/
   integration/        # live-backend tests (skipped without env vars)
@@ -59,8 +59,8 @@ Group: `files_sdk.adapters`
 | `digitalocean-async` | `files_sdk_digitalocean.AsyncDigitalOceanAdapter` |
 | `hetzner` | `files_sdk_hetzner.HetznerAdapter` |
 | `hetzner-async` | `files_sdk_hetzner.AsyncHetznerAdapter` |
-| `akamai` | `files_sdk_akamai.AkamaiAdapter` |
-| `akamai-async` | `files_sdk_akamai.AsyncAkamaiAdapter` |
+| `linode` | `files_sdk_linode.LinodeAdapter` |
+| `linode-async` | `files_sdk_linode.AsyncLinodeAdapter` |
 | `storj` | `files_sdk_storj.StorjAdapter` |
 | `storj-async` | `files_sdk_storj.AsyncStorjAdapter` |
 

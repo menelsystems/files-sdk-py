@@ -88,7 +88,7 @@ jobs:
       # would otherwise put all four into the workspace-level dist/).
       - name: Build all packages
         run: |
-          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2 files-sdk-minio files-sdk-digitalocean files-sdk-hetzner files-sdk-akamai files-sdk-storj; do
+          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2 files-sdk-minio files-sdk-digitalocean files-sdk-hetzner files-sdk-linode files-sdk-storj; do
             echo "::group::build $pkg"
             (cd packages/$pkg && uv build --out-dir dist)
             echo "::endgroup::"
@@ -96,7 +96,7 @@ jobs:
 
       - name: Verify artifacts contain LICENSE
         run: |
-          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2 files-sdk-minio files-sdk-digitalocean files-sdk-hetzner files-sdk-akamai files-sdk-storj; do
+          for pkg in files-sdk files-sdk-s3 files-sdk-local files-sdk-r2 files-sdk-minio files-sdk-digitalocean files-sdk-hetzner files-sdk-linode files-sdk-storj; do
             for f in packages/$pkg/dist/*.whl packages/$pkg/dist/*.tar.gz; do
               python -c "
           import sys, tarfile, zipfile
@@ -172,12 +172,13 @@ jobs:
           packages-dir: packages/files-sdk-hetzner/dist
           attestations: true
 
-      - name: Publish files-sdk-akamai
+      - name: Publish files-sdk-linode
         if: github.event_name == 'push' || inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: packages/files-sdk-akamai/dist
+          packages-dir: packages/files-sdk-linode/dist
           attestations: true
+
 
       - name: Publish files-sdk-storj
         if: github.event_name == 'push' || inputs.dry_run == false
@@ -199,7 +200,7 @@ jobs:
             packages/files-sdk-minio/dist/* \
             packages/files-sdk-digitalocean/dist/* \
             packages/files-sdk-hetzner/dist/* \
-            packages/files-sdk-akamai/dist/* \
+            packages/files-sdk-linode/dist/* \
             packages/files-sdk-storj/dist/* \
             --title "files-sdk-py ${{ steps.meta.outputs.version }}" \
             --notes "Lockstep release of all first-party packages at ${{ steps.meta.outputs.version }}. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md). Install: \`uv add files-sdk-s3==${{ steps.meta.outputs.version }}\` (or any other adapter package)." \

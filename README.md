@@ -13,9 +13,9 @@ cloud object/blob storage providers.
 - **[files-sdk-minio](packages/files-sdk-minio/)** — MinIO (sync + async)
 - **[files-sdk-digitalocean](packages/files-sdk-digitalocean/)** — DigitalOcean Spaces (sync + async)
 - **[files-sdk-hetzner](packages/files-sdk-hetzner/)** — Hetzner Object Storage (sync + async)
-- **[files-sdk-akamai](packages/files-sdk-akamai/)** — Akamai (Linode) Object Storage (sync + async)
+- **[files-sdk-linode](packages/files-sdk-linode/)** — Linode Object Storage (sync + async)
 - **[files-sdk-storj](packages/files-sdk-storj/)** — Storj DCS (sync + async)
-- 9 stub packages awaiting implementation — see each `CLAIM.md`
+- 10 stub packages awaiting implementation (including `files-sdk-akamai` for Akamai NetStorage, distinct from the Linode adapter above) — see each `CLAIM.md`
 
 ## Quickstart (no cloud needed)
 

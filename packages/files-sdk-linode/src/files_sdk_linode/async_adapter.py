@@ -1,4 +1,4 @@
-"""Async Akamai (Linode) Object Storage adapter."""
+"""Async Linode Object Storage adapter."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from files_sdk.errors import FilesError
 from files_sdk_s3 import AsyncS3Adapter
 
 
-class AsyncAkamaiAdapter(AsyncS3Adapter):
-    name: ClassVar[str] = "akamai-async"
+class AsyncLinodeAdapter(AsyncS3Adapter):
+    name: ClassVar[str] = "linode-async"
 
     def __init__(
         self,
@@ -23,20 +23,20 @@ class AsyncAkamaiAdapter(AsyncS3Adapter):
         multipart_threshold: int | None = None,
         _endpoint_override: str | None = None,
     ) -> None:
-        resolved_cluster = cluster or os.environ.get("AKAMAI_CLUSTER")
+        resolved_cluster = cluster or os.environ.get("LINODE_CLUSTER")
         if not resolved_cluster:
             raise FilesError(
                 code="unauthorized",
-                message="AsyncAkamaiAdapter requires cluster= or AKAMAI_CLUSTER env var",
+                message="AsyncLinodeAdapter requires cluster= or LINODE_CLUSTER env var",
                 provider=self.name,
             )
         self._cluster = resolved_cluster
-        self._public_url_base = public_url_base or os.environ.get("AKAMAI_PUBLIC_URL_BASE")
+        self._public_url_base = public_url_base or os.environ.get("LINODE_PUBLIC_URL_BASE")
         kwargs: dict[str, Any] = dict(
-            bucket=bucket or os.environ.get("AKAMAI_BUCKET"),
+            bucket=bucket or os.environ.get("LINODE_BUCKET"),
             region=resolved_cluster,
-            access_key_id=access_key_id or os.environ.get("AKAMAI_ACCESS_KEY_ID"),
-            secret_access_key=secret_access_key or os.environ.get("AKAMAI_SECRET_ACCESS_KEY"),
+            access_key_id=access_key_id or os.environ.get("LINODE_ACCESS_KEY_ID"),
+            secret_access_key=secret_access_key or os.environ.get("LINODE_SECRET_ACCESS_KEY"),
             endpoint_url=_endpoint_override or f"https://{resolved_cluster}.linodeobjects.com",
         )
         if multipart_threshold is not None:

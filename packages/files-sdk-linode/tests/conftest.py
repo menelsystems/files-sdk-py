@@ -1,4 +1,4 @@
-"""Akamai (Linode) Object Storage conformance fixtures."""
+"""Linode Object Storage conformance fixtures."""
 
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ def aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def akamai_bucket(moto_endpoint: str, aws_credentials: None) -> str:
+def linode_bucket(moto_endpoint: str, aws_credentials: None) -> str:
     import uuid
 
-    bucket = f"akamai-{uuid.uuid4().hex[:12]}"
+    bucket = f"linode-{uuid.uuid4().hex[:12]}"
     boto3.client("s3", endpoint_url=moto_endpoint, region_name="us-east-1").create_bucket(
         Bucket=bucket
     )
@@ -39,14 +39,14 @@ def akamai_bucket(moto_endpoint: str, aws_credentials: None) -> str:
 
 
 @pytest.fixture
-def adapter(moto_endpoint: str, akamai_bucket: str):
+def adapter(moto_endpoint: str, linode_bucket: str):
     from files_sdk_s3 import S3Adapter
 
-    return S3Adapter(bucket=akamai_bucket, endpoint_url=moto_endpoint, region="us-east-1")
+    return S3Adapter(bucket=linode_bucket, endpoint_url=moto_endpoint, region="us-east-1")
 
 
 @pytest.fixture
-def async_adapter(moto_endpoint: str, akamai_bucket: str):
+def async_adapter(moto_endpoint: str, linode_bucket: str):
     from files_sdk_s3 import AsyncS3Adapter
 
-    return AsyncS3Adapter(bucket=akamai_bucket, endpoint_url=moto_endpoint, region="us-east-1")
+    return AsyncS3Adapter(bucket=linode_bucket, endpoint_url=moto_endpoint, region="us-east-1")

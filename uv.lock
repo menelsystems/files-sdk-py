@@ -13,6 +13,7 @@ members = [
     "files-sdk-gcs",
     "files-sdk-gdrive",
     "files-sdk-hetzner",
+    "files-sdk-linode",
     "files-sdk-local",
     "files-sdk-minio",
     "files-sdk-netlify",
@@ -656,17 +657,14 @@ requires-dist = [{ name = "pydantic", specifier = ">=2.8" }]
 
 [[package]]
 name = "files-sdk-akamai"
+version = "0.0.0"
 source = { editable = "packages/files-sdk-akamai" }
 dependencies = [
     { name = "files-sdk" },
-    { name = "files-sdk-s3" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "files-sdk", editable = "packages/files-sdk" },
-    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
-]
+requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-azure"
@@ -740,6 +738,20 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 [[package]]
 name = "files-sdk-hetzner"
 source = { editable = "packages/files-sdk-hetzner" }
+dependencies = [
+    { name = "files-sdk" },
+    { name = "files-sdk-s3" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "files-sdk", editable = "packages/files-sdk" },
+    { name = "files-sdk-s3", editable = "packages/files-sdk-s3" },
+]
+
+[[package]]
+name = "files-sdk-linode"
+source = { editable = "packages/files-sdk-linode" }
 dependencies = [
     { name = "files-sdk" },
     { name = "files-sdk-s3" },
