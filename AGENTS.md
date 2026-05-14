@@ -7,10 +7,16 @@ Unified Python SDK for cloud object/blob storage. One API, swap the adapter to c
 ```
 packages/
   files-sdk/          # core: Protocol, client, types, errors, conformance suite
-  files-sdk-s3/       # Amazon S3 — sync (boto3) + async (aioboto3)
-  files-sdk-r2/       # Cloudflare R2 — subclasses S3 adapter
-  files-sdk-local/    # local filesystem — pure stdlib, zero deps
-  files-sdk-<x>/      # 15 stub packages awaiting contributors
+  files-sdk-s3/            # Amazon S3 — sync (boto3) + async (aioboto3)
+  files-sdk-r2/            # Cloudflare R2 — subclasses S3 adapter
+  files-sdk-local/         # local filesystem — pure stdlib, zero deps
+  files-sdk-uploadthing/   # UploadThing — httpx + ported HMAC presign (sync + async)
+  files-sdk-minio/         # MinIO — subclasses S3 adapter
+  files-sdk-digitalocean/  # DigitalOcean Spaces — subclasses S3 adapter
+  files-sdk-hetzner/       # Hetzner Object Storage — subclasses S3 adapter
+  files-sdk-linode/        # Linode Object Storage — subclasses S3 adapter
+  files-sdk-storj/         # Storj DCS — subclasses S3 adapter
+  files-sdk-<x>/           # 10 stub packages awaiting contributors
   _template/          # scaffold reference (NOT a workspace member)
 tests/
   integration/        # live-backend tests (skipped without env vars)
@@ -45,6 +51,18 @@ Group: `files_sdk.adapters`
 | `r2-async` | `files_sdk_r2.AsyncR2Adapter` |
 | `local` | `files_sdk_local.LocalAdapter` |
 | `local-async` | `files_sdk_local.AsyncLocalAdapter` |
+| `uploadthing` | `files_sdk_uploadthing.UploadThingAdapter` |
+| `uploadthing-async` | `files_sdk_uploadthing.AsyncUploadThingAdapter` |
+| `minio` | `files_sdk_minio.MinIOAdapter` |
+| `minio-async` | `files_sdk_minio.AsyncMinIOAdapter` |
+| `digitalocean` | `files_sdk_digitalocean.DigitalOceanAdapter` |
+| `digitalocean-async` | `files_sdk_digitalocean.AsyncDigitalOceanAdapter` |
+| `hetzner` | `files_sdk_hetzner.HetznerAdapter` |
+| `hetzner-async` | `files_sdk_hetzner.AsyncHetznerAdapter` |
+| `linode` | `files_sdk_linode.LinodeAdapter` |
+| `linode-async` | `files_sdk_linode.AsyncLinodeAdapter` |
+| `storj` | `files_sdk_storj.StorjAdapter` |
+| `storj-async` | `files_sdk_storj.AsyncStorjAdapter` |
 
 Look up by name: `Files.from_name("s3", bucket="my-bucket")`
 

@@ -1,50 +1,61 @@
-"""Stub MinIO adapter — claim this in CLAIM.md and implement."""
+"""Synchronous MinIO adapter."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import os
 from typing import Any, ClassVar
 
-from files_sdk.types import FileMetadata, ListPage, SignedUpload, StoredFile, UploadBody
+from files_sdk.errors import FilesError
+from files_sdk_s3 import S3Adapter
 
-_NOT_IMPLEMENTED = "files-sdk-minio is a stub. See packages/files-sdk-minio/CLAIM.md to claim it."
 
+class MinIOAdapter(S3Adapter):
+    """MinIO storage adapter (S3-compatible).
 
-class MinIOAdapter:
+    MinIO is self-hosted, so the endpoint URL is required and has no canonical
+    default. The region defaults to ``us-east-1`` (the standard MinIO default)
+    but can be overridden per-deployment.
+    """
+
     name: ClassVar[str] = "minio"
 
-    def __init__(self, **_: Any) -> None:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def upload(self, key: str, body: UploadBody, **opts: Any) -> FileMetadata:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def download(self, key: str) -> StoredFile:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def stream(self, key: str, *, chunk_size: int = 65536) -> Iterator[bytes]:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def head(self, key: str) -> FileMetadata:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def delete(self, key: str) -> None:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def list(
-        self, *, prefix: str | None = None, cursor: str | None = None, limit: int = 1000
-    ) -> ListPage:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def copy(self, src: str, dst: str) -> FileMetadata:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
+    def __init__(
+        self,
+        *,
+        endpoint: str | None = None,
+        bucket: str | None = None,
+        access_key_id: str | None = None,
+        secret_access_key: str | None = None,
+        region: str | None = None,
+        public_url_base: str | None = None,
+        multipart_threshold: int | None = None,
+    ) -> None:
+        resolved_endpoint = endpoint or os.environ.get("MINIO_ENDPOINT")
+        if not resolved_endpoint:
+            raise FilesError(
+                code="unauthorized",
+                message="MinIOAdapter requires endpoint= or MINIO_ENDPOINT env var",
+                provider=self.name,
+            )
+        self._public_url_base = public_url_base or os.environ.get("MINIO_PUBLIC_URL_BASE")
+        kwargs: dict[str, Any] = dict(
+            bucket=bucket or os.environ.get("MINIO_BUCKET"),
+            region=region or os.environ.get("MINIO_REGION") or "us-east-1",
+            access_key_id=access_key_id or os.environ.get("MINIO_ACCESS_KEY_ID"),
+            secret_access_key=secret_access_key or os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+            endpoint_url=resolved_endpoint,
+        )
+        if multipart_threshold is not None:
+            kwargs["multipart_threshold"] = multipart_threshold
+        super().__init__(**kwargs)
 
     def url(self, key: str, *, expires_in: int = 3600, public: bool = False) -> str:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    def signed_upload_url(self, key: str, **opts: Any) -> SignedUpload:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
-
-    @property
-    def raw(self) -> Any:
-        raise NotImplementedError(_NOT_IMPLEMENTED)
+        if public:
+            if not self._public_url_base:
+                raise FilesError(
+                    code="invalid_input",
+                    message="public=True requires public_url_base= or MINIO_PUBLIC_URL_BASE",
+                    provider=self.name,
+                )
+            return f"{self._public_url_base.rstrip('/')}/{key}"
+        return super().url(key, expires_in=expires_in, public=False)

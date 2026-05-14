@@ -17,7 +17,13 @@ Pick whichever fits your stack — no `asyncio.run` glue, no sync-wrapped-around
 - **[files-sdk-local](packages/files-sdk-local/)** — local filesystem, sync + async (zero deps, ideal for dev/test)
 - **[files-sdk-s3](packages/files-sdk-s3/)** — Amazon S3, sync + async
 - **[files-sdk-r2](packages/files-sdk-r2/)** — Cloudflare R2, sync + async
-- 15 stub packages awaiting implementation — see each `CLAIM.md`
+- **[files-sdk-uploadthing](packages/files-sdk-uploadthing/)** — UploadThing, sync + async
+- **[files-sdk-minio](packages/files-sdk-minio/)** — MinIO, sync + async
+- **[files-sdk-digitalocean](packages/files-sdk-digitalocean/)** — DigitalOcean Spaces, sync + async
+- **[files-sdk-hetzner](packages/files-sdk-hetzner/)** — Hetzner Object Storage, sync + async
+- **[files-sdk-linode](packages/files-sdk-linode/)** — Linode Object Storage, sync + async
+- **[files-sdk-storj](packages/files-sdk-storj/)** — Storj DCS, sync + async
+- 10 stub packages awaiting implementation (including `files-sdk-akamai` for Akamai NetStorage, distinct from the Linode adapter above) — see each `CLAIM.md`
 
 ## Quickstart (no cloud needed)
 
