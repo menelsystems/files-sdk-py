@@ -868,7 +868,6 @@ requires-dist = [{ name = "files-sdk", editable = "packages/files-sdk" }]
 
 [[package]]
 name = "files-sdk-uploadthing"
-version = "0.0.0"
 source = { editable = "packages/files-sdk-uploadthing" }
 dependencies = [
     { name = "files-sdk" },

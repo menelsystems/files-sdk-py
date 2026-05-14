@@ -13,6 +13,13 @@ published, per-package changelogs may be split out.
 
 ### Added
 
+- `files-sdk-uploadthing` adapter (#25): sync + async classes mapping the
+  adapter key to UploadThing's `customId`, with locally-computed HMAC-SHA256
+  presigned URLs (no UT-side roundtrip) and a CDN-via-API fallback for
+  non-ASCII keys. 77/77 conformance (14 sync live + 14 async live + 35
+  offline). Migrated to lockstep VERSION + LICENSE-bundled + OIDC publish
+  wiring alongside the tier-1 batch (was merged before the release pipeline
+  scaled out).
 - Tier-1 S3-compatible adapters (closes #21, #22, #23, #24): `files-sdk-minio`,
   `files-sdk-digitalocean`, `files-sdk-hetzner`, `files-sdk-storj`. Each ships
   sync + async classes that subclass the S3 adapter, expose provider env-var

@@ -1,12 +1,15 @@
 [project]
 name = "files-sdk-uploadthing"
-version = "0.0.0"
-description = "UploadThing adapter for files-sdk (stub)"
+dynamic = ["version"]
+description = "UploadThing adapter for files-sdk"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Carter Himmel", email = "carter@menelsystems.com"}]
+keywords = ["uploadthing", "storage", "files", "object-storage"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -19,6 +22,11 @@ dependencies = [
     "sqids>=0.5.2",
 ]
 
+[project.urls]
+Homepage = "https://github.com/menelsystems/files-sdk-py"
+Repository = "https://github.com/menelsystems/files-sdk-py"
+Issues = "https://github.com/menelsystems/files-sdk-py/issues"
+
 [project.entry-points."files_sdk.adapters"]
 uploadthing = "files_sdk_uploadthing:UploadThingAdapter"
 uploadthing-async = "files_sdk_uploadthing:AsyncUploadThingAdapter"
@@ -27,8 +35,13 @@ uploadthing-async = "files_sdk_uploadthing:AsyncUploadThingAdapter"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "^(?P<version>.+)$"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/files_sdk_uploadthing"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 testpaths = ["tests"]
